@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f0ebe0;
+  color: #2d3f4a;
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+body.dark {
+  background-color: #1a2635;
+  color: #c8c0b0;
+}
+
+body.dark select,
+body.dark input {
+  color-scheme: dark;
+}

@@ -1,0 +1,19 @@
+[Unit]
+Description=Weather Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=menno
+WorkingDirectory=/home/menno/Documents/raspberry-weather-screen/backend
+Environment="PATH=/home/menno/Documents/raspberry-weather-screen/backend/.venv/bin"
+ExecStart=/home/menno/Documents/raspberry-weather-screen/backend/.venv/bin/gunicorn \
+    --workers 2 \
+    --bind 0.0.0.0:5000 \
+    --timeout 60 \
+    app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

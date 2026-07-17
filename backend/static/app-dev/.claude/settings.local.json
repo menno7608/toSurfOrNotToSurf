@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file /home/menno/Documents/raspberry-weather-screen/frontend/public/weather-icons/*.png)",
+      "Bash(python3:*)",
+      "Read(//home/menno/Documents/raspberry-weather-screen/frontend/**)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

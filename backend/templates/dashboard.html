@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Surfspot Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Voeg Chart.js toe -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Spot: Scheveningen</h1>
+        <div class="wind-info">
+            <div>Measured ind</div>
+            <div>Live Wind</div>
+            <div>Forcasted Wind</div>
+        </div>
+    </header>
+
+    <main>
+        <section class="graphs">
+            <!-- Windgrafiek -->
+            <div class="wind-graph">
+                <h2>Wind graph</h2>
+                <canvas id="windChart"></canvas>
+            </div>
+
+            <!-- Golfhoogte -->
+            <div class="wave-graph">
+                <h2>Wave height & Direction</h2>
+                <canvas id="waveChart"></canvas>
+            </div>
+
+            <!-- Getij -->
+            <div class="tide-graph">
+                <h2>Tide & curent</h2>
+                <canvas id="tideChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

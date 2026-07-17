@@ -1,0 +1,9 @@
+Flask
+gunicorn
+requests
+apscheduler
+python-dotenv
+numpy
+cfgrib
+xarray
+scipy
