@@ -19,3 +19,14 @@ dist/
 
 # Runtime tunnel-URL (lokaal, niet delen)
 URL.txt
+
+# Interne docs / AI-werkbestanden — niet publiek delen.
+# Bevatten o.a. thuis-IP, poortconfig en projectnotities.
+*.md
+!README.md
+ai-mirror/
+devREADME.txt
+verbeteringen.txt
+
+# Claude Code lokale config
+.claude/settings.local.json
