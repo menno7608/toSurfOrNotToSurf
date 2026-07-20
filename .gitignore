@@ -16,3 +16,6 @@ dist/
 
 # OS
 .DS_Store
+
+# Runtime tunnel-URL (lokaal, niet delen)
+URL.txt
