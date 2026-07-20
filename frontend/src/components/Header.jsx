@@ -143,9 +143,13 @@ function WeatherIcon({ code, windSpeed }) {
       src={`/weather-icons/${name}.png`}
       alt={name}
       style={{
-        height: "92%",
-        width: "auto",
-        maxWidth: "100%",
+        // Absoluut gepositioneerd: het icoon schaalt mee met de headerhoogte,
+        // maar bepaalt die nooit zelf (de PNG's zijn intrinsiek 400px hoog).
+        position: "absolute",
+        // Expliciete maten: bij auto zou de browser de intrinsieke PNG-maat
+        // pakken en right/bottom negeren, waardoor het icoon uit beeld loopt.
+        top: "4%", left: 8,
+        width: "calc(100% - 16px)", height: "92%",
         objectFit: "contain",
         display: "block",
       }}
@@ -317,10 +321,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
       <div style={{
         flex: 1,
         alignSelf: "stretch",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "0 8px",
+        position: "relative",
         minWidth: 0,
         overflow: "hidden",
       }}>
