@@ -24,6 +24,7 @@ URL.txt
 # Bevatten o.a. thuis-IP, poortconfig en projectnotities.
 *.md
 !README.md
+!addSpots.md
 ai-mirror/
 devREADME.txt
 verbeteringen.txt
