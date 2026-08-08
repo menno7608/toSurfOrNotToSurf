@@ -4,8 +4,21 @@ PROJECT="$(cd "$(dirname "$0")" && pwd)"
 URL_FILE="$PROJECT/URL.txt"
 LOG="/tmp/cloudflared.log"
 
-# Stop bestaande processen
-pkill -f cloudflared 2>/dev/null
+# In productie draaien backend en tunnel als systemd-units. Dit script is de
+# handmatige route ernaast en zou die twee omleggen: het startte een eigen
+# server op poort 5000 en een eigen tunnel. Sinds de tunnel een vaste
+# hostname bedient (tosurfornottosurf.nl) is dat geen ongemak meer maar een
+# storing, dus hier wordt eerst gekeken of de diensten al draaien.
+if systemctl is-active --quiet weather-dashboard.service; then
+    echo "weather-dashboard.service draait al — deze backend wordt beheerd door systemd."
+    echo "Herstarten:      sudo systemctl restart weather-dashboard.service"
+    echo "Code herladen:   kill -HUP \$(pgrep -f gunicorn | head -1)"
+    exit 1
+fi
+
+# Stop bestaande processen. NIET cloudflared: de tunnel is een aparte dienst
+# (cloudflared.service) met een vaste hostname. Die hoort niet bij het starten
+# van de backend te worden omgelegd.
 pkill -f "python app.py" 2>/dev/null
 
 # Wacht tot poort 5000 echt vrij is (max 10s)
@@ -38,24 +51,12 @@ source .venv/bin/activate
 nohup python app.py > /tmp/flask.log 2>&1 &
 echo "Flask gestart (log: /tmp/flask.log)"
 
-# Start Cloudflare tunnel
-rm -f "$LOG"
-nohup cloudflared tunnel --url http://localhost:5000 > "$LOG" 2>&1 &
-
-# Achtergrondproces: zodra URL bekend is, schrijf naar URL.txt
-(
-    for i in $(seq 1 30); do
-        URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" 2>/dev/null | tail -1)
-        if [ -n "$URL" ]; then
-            echo "$URL" > "$URL_FILE"
-            echo "App bereikbaar op: $URL"
-            break
-        fi
-        sleep 1
-    done
-    if [ -z "$URL" ]; then
-        echo "Cloudflare URL niet gevonden na 30s, check /tmp/cloudflared.log"
-    fi
-) &
-
-echo "App wordt opgestart... URL verschijnt zo in URL.txt"
+# De tunnel wordt hier niet meer gestart. Tot 8 augustus 2026 draaide hier een
+# quick tunnel (`cloudflared tunnel --url`), die bij elke start een nieuwe
+# trycloudflare-URL kreeg; die werd uit het log gevist en in URL.txt gezet.
+# Inmiddels bedient cloudflared.service een named tunnel op een vaste hostname,
+# dus is er niets meer te vissen en zou een tweede tunnel alleen verwarring
+# geven.
+echo "App wordt opgestart op http://localhost:5000"
+echo "Publiek adres: $(cat "$URL_FILE" 2>/dev/null || echo 'zie URL.txt')"
+echo "Tunnel:        systemctl status cloudflared.service"
