@@ -197,7 +197,24 @@ def _nearest_br_station(lat: float, lon: float, stations: list) -> dict | None:
 _om_semaphore = threading.Semaphore(3)
 
 # ── Open-Meteo fetch (hourly + daily in één request) ──────────────────────────
+# Dekkingsgebied van KNMI Harmonie-Arome, ruim genomen. Buiten dit gebied
+# antwoordt Open-Meteo met HTTP 200 en `"latitude":nan` — geen geldige JSON, dus
+# dat liep uit op een parse-fout, een tweede verzoek voor best_match en een
+# gebruiker die zonder melding een ander model te zien kreeg. Nu wordt het
+# verzoek niet meer gedaan.
+_HARMONIE_BBOX = (43.0, 64.0, -12.0, 22.0)  # lat_min, lat_max, lon_min, lon_max
+
+
+def _model_dekt(lat: float, lon: float, model: str) -> bool:
+    if model != "knmi_harmonie_arome_europe":
+        return True
+    lat_min, lat_max, lon_min, lon_max = _HARMONIE_BBOX
+    return lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
+
+
 def _fetch_weather(lat, lon, model):
+    if not _model_dekt(lat, lon, model):
+        return None
     with _om_semaphore:
         r = req.get("https://api.open-meteo.com/v1/forecast", params={
             "latitude": lat, "longitude": lon,
@@ -214,9 +231,17 @@ def _fetch_weather(lat, lon, model):
 
 
 # ── MET Norway fallback (gratis, geen key, wereldwijd) ────────────────────────
-_MET_UA = "raspberry-weather-screen/1.0 contact@example.com"
+# MET Norway eist een User-Agent met een echt contactadres en beantwoordt alles
+# met een voorbeeldadres met 403. Er stond `contact@example.com`, waardoor deze
+# fallback nooit gewerkt heeft — hij sprong pas in als Open-Meteo eruit lag, en
+# gaf dan zelf ook niets. Het adres staat in .env omdat deze repo openbaar is.
+_MET_CONTACT = os.getenv("MET_CONTACT", "").strip()
+_MET_UA = f"toSurfOrNotToSurf/1.0 {_MET_CONTACT}" if _MET_CONTACT else ""
+
 
 def _fetch_met_norway(lat, lon):
+    if not _MET_UA:
+        raise RuntimeError("MET_CONTACT niet gezet in .env — MET Norway zou 403 geven")
     r = req.get(
         "https://api.met.no/weatherapi/locationforecast/2.0/compact",
         params={"lat": round(lat, 4), "lon": round(lon, 4)},
@@ -443,6 +468,14 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
     now_h = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
     is_nl = harmonie_data is not None and harmonie.is_nl_spot(meta["lat"], meta["lon"])
+
+    # Model dekt deze plek niet: meteen opgeven, zodat _get_spot terugvalt op
+    # best_match. Doorgaan naar de MET Norway-fallback zou hier verkeerd zijn —
+    # dan kreeg de gebruiker een wereldwijd model onder de naam van het model
+    # dat hij koos.
+    if not _model_dekt(meta["lat"], meta["lon"], model):
+        print(f"[INFO] {meta['id']}: model '{model}' dekt deze locatie niet")
+        return None
 
     # ── Weerdata ophalen: Open-Meteo → MET Norway fallback ───────────────────
     weather = None
