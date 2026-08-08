@@ -31,20 +31,32 @@ function WeatherIcon({ code, windSpeed, size = 40 }) {
   if ((code === 0 || code === 1) && windSpeed != null && windSpeed > 12) name = "windy";
   return (
     <img
-      src={`/weather-icons/${name}.png`}
+      src={`${import.meta.env.BASE_URL}weather-icons/${name}.png`}
       alt={name}
       style={{ height: size, width: "auto", objectFit: "contain", display: "block", flexShrink: 0 }}
     />
   );
 }
 
+/* Korte modelnamen op de telefoon.
+
+   Op iOS moet dit veld minstens 16px zijn, anders zoomt Safari bij het aantikken
+   de hele pagina in en zoomt niet terug. Bij die lettergrootte paste
+   "Best Match (auto)" niet meer naast de eenheidsknoppen: de knop las nog maar
+   "Best M▾", en een afkapping die je niet kunt lezen is erger dan een korte
+   naam die je wél kunt lezen.
+
+   Een native `select` toont de tekst van de gekozen optie, dus dicht en open
+   kunnen niet verschillen — de korte naam is de naam. Op een scherm van 390px
+   voegt "Harmonie (KNMI)" ook weinig toe boven "KNMI". Het wandscherm gebruikt
+   deze lijst niet; dat heeft zijn eigen keuzemenu met de volledige namen. */
 const MODELS = [
-  { id: "best_match",                 label: "Best Match (auto)" },
-  { id: "ecmwf_ifs04",                label: "ECMWF IFS" },
-  { id: "gfs_seamless",               label: "GFS (NOAA)" },
-  { id: "icon_seamless",              label: "ICON (DWD)" },
-  { id: "knmi_harmonie_arome_europe", label: "Harmonie (KNMI)" },
-  { id: "meteofrance_seamless",       label: "Météo-France" },
+  { id: "best_match",                 label: "Auto" },
+  { id: "ecmwf_ifs025",               label: "ECMWF" },
+  { id: "gfs_seamless",               label: "GFS" },
+  { id: "icon_seamless",              label: "ICON" },
+  { id: "knmi_harmonie_arome_europe", label: "KNMI" },
+  { id: "meteofrance_seamless",       label: "Météo-FR" },
 ];
 
 const UNITS = ["kts", "m/s", "km/h"];
@@ -310,13 +322,37 @@ export default function MobileLayout({
       height: "100dvh",
       overflowY: "auto",
       overflowX: "hidden",
+      /* Onderaan ruimte voor de home-indicator: de streep waarmee je op een
+         iPhone zonder thuisknop veegt. Die ligt over de app heen, dus zonder
+         deze marge valt de onderste grafiek er deels achter en is hij niet
+         aan te tikken. */
+      paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      /* Doorschieten aan de randen tegenhouden. Zonder dit trekt Safari bij
+         het doorscrollen de héle pagina mee (de rubberband), waardoor de kop
+         los van het scherm lijkt te komen — in een geïnstalleerde app leest
+         dat als een storing en niet als een gebaar. */
+      overscrollBehaviorY: "contain",
+      WebkitOverflowScrolling: "touch",
     }}>
 
       {/* ── HEADER: spot + tijd + LIVE ── */}
       <div style={{
         background: C.cream,
         borderBottom: `2px solid ${C.border}`,
-        padding: "8px 12px 6px",
+        /* De bovenmarge vangt de statusbalk van de telefoon op. `mobile.html`
+           zet `apple-mobile-web-app-status-bar-style` op `black-translucent`,
+           wat betekent dat iOS zijn klok, batterij en signaalsterkte *over* de
+           app heen tekent in plaats van ernaast. Zonder deze inset staat de
+           iPhone-klok boven op de tijd in deze kop — gemeten op een iPhone 14
+           begon de kop op y=0.
+
+           Ook links en rechts, want in liggende stand schuift de notch naar de
+           zijkant. Op een toestel zonder notch is de inset 0 en verandert er
+           niets; `env()` valt dan terug op de tweede waarde. */
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+        paddingLeft: "calc(env(safe-area-inset-left, 0px) + 12px)",
+        paddingRight: "calc(env(safe-area-inset-right, 0px) + 12px)",
+        paddingBottom: 6,
         flexShrink: 0,
       }}>
         {/* Rij 1: spot naam + tijd + icoon + LIVE */}
@@ -547,7 +583,12 @@ export default function MobileLayout({
           value={weatherModel}
           onChange={(e) => onModelChange(e.target.value)}
           style={{
-            flex: 1, minWidth: 0, fontSize: 11, padding: "4px 6px",
+            /* Géén `fontSize` hier: die stond op 11px en dat is precies wat
+               Safari op iOS laat inzoomen zodra je het veld aantikt — de hele
+               pagina wordt vergroot en zoomt niet terug. `index.css` zet hem op
+               aanraakschermen op 16px (de iOS-drempel) en laat het wandscherm
+               ongemoeid. Een inline waarde zou die regel overrulen. */
+            flex: 1, minWidth: 0, padding: "4px 6px",
             border: `1px solid ${C.border}`, borderRadius: 4,
             background: C.cream, color: C.dark, cursor: "pointer", outline: "none",
           }}

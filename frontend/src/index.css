@@ -22,3 +22,51 @@ body.dark select,
 body.dark input {
   color-scheme: dark;
 }
+
+/* ── iPhone / aanraakschermen (06-08) ────────────────────────────────────────
+
+   Gemeten in WebKit — de motor van Safari — op een iPhone 14. Tot nu toe is
+   alles op Chromium en op Menno's Android bekeken, dus wat alléén in Safari
+   stukgaat, is nooit gezien.
+
+   Scope: `pointer: coarse` plus de telefoonbreedte. Het wandscherm blijft
+   ongemoeid — daar zijn compacte knoppen juist gewenst, want er past dan meer
+   informatie op één blik. */
+@media (pointer: coarse) and (max-width: 900px) {
+  /* 1. Raakvlakken. Apple's richtlijn is 44pt. Gemeten stonden LIVE, MAP, Air,
+        Water en alle grafiektabs op 21 tot 25px — dat is een halve duim en op
+        het strand met natte handen niet te bedienen. De hoogte komt uit
+        `min-height`, niet uit meer padding: de knoppen houden hun compacte
+        uiterlijk, alleen het gebied dat je kunt raken groeit mee. */
+  button,
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  /* 2. Formuliervelden op minstens 16px. Dit is geen smaakkwestie maar een
+        harde iOS-regel: Safari zoomt de héle pagina in zodra je een veld met
+        een kleinere letter aantikt, en zoomt daarna niet terug — je zit vast in
+        een uitvergrote app tot je handmatig uitzoomt. De modelkiezer stond op
+        11px. Chromium doet dit niet, dus op Android was er niets te merken. */
+  select,
+  input,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  /* 3. Geen blauwe flits bij het aantikken; die hoort bij een link, niet bij
+        een knop in een app die als app is geïnstalleerd. */
+  button,
+  select,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 4. Safari vergroot letters eigenmachtig bij het draaien naar liggend. Op
+        een dashboard met vaste kolommen breekt dat de uitlijning. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
