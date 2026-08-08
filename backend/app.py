@@ -353,47 +353,73 @@ def _fetch_knmi(station_nr: int, hours: int = 14) -> list:
     return result
 
 
-_weather2kite_cache: dict[int, tuple[datetime, dict]] = {}
+_weather2kite_snapshot: tuple[datetime, dict[int, dict]] | None = None
 _WEATHER2KITE_TTL = timedelta(minutes=5)
+# Metingen ouder dan dit tellen niet meer als "live"; het station staat dan stil.
+_WEATHER2KITE_MAX_AGE = timedelta(minutes=35)
 
 
-def _fetch_weather2kite_live(spot_id: int) -> dict | None:
-    """Haalt laatste lokale 10-minutenmeting op van Weather2Kite."""
+def _fetch_weather2kite_all() -> dict[int, dict]:
+    """Laatste 10-minutenmeting van álle Weather2Kite-stations, per spot_id.
+
+    De API geeft zonder `spot_id`-parameter in één antwoord alle stations terug.
+    Dat scheelt tientallen verzoeken per ronde — met een meetstation per spot zou
+    het anders om één verzoek per spot per vijf minuten gaan, en dat is zowel
+    traag voor ons als onbeleefd tegenover een gratis bron.
+
+    Eén rij per grootheid per station, dus rijen worden op spot_id gegroepeerd.
+    """
+    global _weather2kite_snapshot
     now = datetime.now(timezone.utc)
-    cached = _weather2kite_cache.get(spot_id)
-    if cached and now - cached[0] < _WEATHER2KITE_TTL:
-        return cached[1]
+    if _weather2kite_snapshot and now - _weather2kite_snapshot[0] < _WEATHER2KITE_TTL:
+        return _weather2kite_snapshot[1]
 
     r = req.get(
         "https://www.weather2kite.nl/sc/scapi.php",
-        params={"table": "mv_spotwind", "spot_id": spot_id},
+        params={"table": "mv_spotwind"},
         headers={
             "User-Agent": "Mozilla/5.0 (compatible; toSurfOrNotToSurf/1.0)",
-            "Referer": f"https://www.weather2kite.nl/web/spotinfo?spot={spot_id}",
+            "Referer": "https://www.weather2kite.nl/web/spotinfo",
         },
-        timeout=12,
+        timeout=15,
     )
     r.raise_for_status()
-    rows = r.json()
-    if not rows:
-        return None
 
-    values = {row.get("et_name"): row.get("evalue") for row in rows}
-    measured_at = datetime.fromtimestamp(rows[0]["etime"], timezone.utc)
-    if now - measured_at > timedelta(minutes=35):
-        return None
+    per_spot: dict[int, dict] = {}
+    for row in r.json():
+        spot_id = row.get("spot_id")
+        if spot_id is None:
+            continue
+        entry = per_spot.setdefault(spot_id, {"dt": None, "v": None, "g": None,
+                                              "dir": None, "src": "w2k"})
+        name  = row.get("et_name")
+        value = row.get("evalue")
+        units = row.get("units")
+        if name == "Windsnelheid" and units == "m/s":
+            entry["v"] = value
+        elif name == "Windstoot" and units == "m/s":
+            entry["g"] = value
+        elif name == "Windrichting":
+            entry["dir"] = value
+        # De rest van de app rekent in m/s (Open-Meteo staat op wind_speed_unit=ms,
+        # Buienradar levert m/s). Een station dat in knopen rapporteert wordt
+        # daarom overgeslagen in plaats van stilzwijgend fout ingelezen.
+        if row.get("etime"):
+            entry["dt"] = datetime.fromtimestamp(row["etime"], timezone.utc)
 
-    result = {
-        "dt": measured_at,
-        "v": values.get("Windsnelheid"),
-        "g": values.get("Windstoot"),
-        "dir": values.get("Windrichting"),
-        "src": "kzvs",
+    fresh = {
+        spot_id: entry
+        for spot_id, entry in per_spot.items()
+        if entry["v"] is not None and entry["dt"] is not None
+        and now - entry["dt"] <= _WEATHER2KITE_MAX_AGE
     }
-    if result["v"] is None:
-        return None
-    _weather2kite_cache[spot_id] = (now, result)
-    return result
+    _weather2kite_snapshot = (now, fresh)
+    return fresh
+
+
+def _fetch_weather2kite_live(spot_id: int) -> dict | None:
+    """Laatste lokale 10-minutenmeting voor één Weather2Kite-station."""
+    return _fetch_weather2kite_all().get(spot_id)
 
 
 def _parse_time(ts: str) -> datetime:
@@ -729,7 +755,13 @@ def _apply_buienradar(spot: dict, meta: dict) -> dict:
     """Overlay live wind met verse Buienradar-meting (eigen 10-min cache)."""
     try:
         if "weather2kite_spot" in meta:
-            local = _fetch_weather2kite_live(meta["weather2kite_spot"])
+            # Eigen try: valt Weather2Kite weg, dan hoort deze spot terug te vallen
+            # op Buienradar en niet zonder live wind te blijven zitten.
+            try:
+                local = _fetch_weather2kite_live(meta["weather2kite_spot"])
+            except Exception as e:
+                print(f"[WARN] Weather2Kite {meta['id']}: {e}")
+                local = None
             if local:
                 import copy
                 spot = copy.copy(spot)
