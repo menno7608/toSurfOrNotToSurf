@@ -337,6 +337,49 @@ def _fetch_knmi(station_nr: int, hours: int = 14) -> list:
     return result
 
 
+_weather2kite_cache: dict[int, tuple[datetime, dict]] = {}
+_WEATHER2KITE_TTL = timedelta(minutes=5)
+
+
+def _fetch_weather2kite_live(spot_id: int) -> dict | None:
+    """Haalt laatste lokale 10-minutenmeting op van Weather2Kite."""
+    now = datetime.now(timezone.utc)
+    cached = _weather2kite_cache.get(spot_id)
+    if cached and now - cached[0] < _WEATHER2KITE_TTL:
+        return cached[1]
+
+    r = req.get(
+        "https://www.weather2kite.nl/sc/scapi.php",
+        params={"table": "mv_spotwind", "spot_id": spot_id},
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; toSurfOrNotToSurf/1.0)",
+            "Referer": f"https://www.weather2kite.nl/web/spotinfo?spot={spot_id}",
+        },
+        timeout=12,
+    )
+    r.raise_for_status()
+    rows = r.json()
+    if not rows:
+        return None
+
+    values = {row.get("et_name"): row.get("evalue") for row in rows}
+    measured_at = datetime.fromtimestamp(rows[0]["etime"], timezone.utc)
+    if now - measured_at > timedelta(minutes=35):
+        return None
+
+    result = {
+        "dt": measured_at,
+        "v": values.get("Windsnelheid"),
+        "g": values.get("Windstoot"),
+        "dir": values.get("Windrichting"),
+        "src": "kzvs",
+    }
+    if result["v"] is None:
+        return None
+    _weather2kite_cache[spot_id] = (now, result)
+    return result
+
+
 def _parse_time(ts: str) -> datetime:
     return datetime.fromisoformat(ts).replace(tzinfo=timezone.utc)
 
@@ -669,6 +712,30 @@ def _parse_daily(raw: dict | None) -> list:
 def _apply_buienradar(spot: dict, meta: dict) -> dict:
     """Overlay live wind met verse Buienradar-meting (eigen 10-min cache)."""
     try:
+        if "weather2kite_spot" in meta:
+            local = _fetch_weather2kite_live(meta["weather2kite_spot"])
+            if local:
+                import copy
+                spot = copy.copy(spot)
+                spot["live"] = dict(spot["live"])
+                spot["live"]["windSpeed"] = round(float(local["v"]), 1)
+                if local["g"] is not None:
+                    spot["live"]["windGust"] = round(float(local["g"]), 1)
+                if local["dir"] is not None:
+                    spot["live"]["windDir"] = int(round(float(local["dir"])))
+                local_dt = local["dt"] + timedelta(seconds=spot.get("utcOffset", 0))
+                spot["windLive"] = [{
+                    "t": local_dt.strftime("%H:%M"),
+                    "date": local_dt.strftime("%Y-%m-%d"),
+                    "v": spot["live"]["windSpeed"],
+                    "g": spot["live"].get("windGust"),
+                    "dir": spot["live"].get("windDir"),
+                    "src": local["src"],
+                    "rain": None,
+                }]
+                spot["liveAt"] = local["dt"].isoformat(timespec="minutes")
+                return spot
+
         br_stations = _fetch_buienradar()
         br = _nearest_br_station(meta["lat"], meta["lon"], br_stations)
         if not br:

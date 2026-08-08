@@ -40,7 +40,7 @@
   {"id": "oudegaasterbrekke",  "name": "Oudegaasterbrekke",     "lat": 52.921, "lon":  5.546, "min_wind": 5, "max_wind": 12},
   {"id": "ouddorp",            "name": "Ouddorp",               "lat": 51.824, "lon":  3.928, "shore_angle": 300},
   {"id": "renesse",            "name": "Renesse",               "lat": 51.729, "lon":  3.775, "shore_angle": 310},
-  {"id": "scheveningen",       "name": "Scheveningen",          "lat": 52.103, "lon":  4.273, "shore_angle": 315, "knmi_stn": 330, "min_wind": 6, "max_wind": 14, "webcam": "https://webcam.nl/scheveningen/"},
+  {"id": "scheveningen",       "name": "Scheveningen",          "lat": 52.103, "lon":  4.273, "shore_angle": 315, "knmi_stn": 330, "weather2kite_spot": 36, "min_wind": 6, "max_wind": 14, "webcam": "https://webcam.nl/scheveningen/"},
   {"id": "sloten",             "name": "Sloten (Friese meren)", "lat": 52.912, "lon":  5.621, "min_wind": 5, "max_wind": 12},
   {"id": "sneek",              "name": "Sneek (Friese meren)",  "lat": 53.032, "lon":  5.659, "min_wind": 5, "max_wind": 12},
   {"id": "sneekermeer",        "name": "Sneekermeer",           "lat": 53.004, "lon":  5.741, "min_wind": 5, "max_wind": 12},
