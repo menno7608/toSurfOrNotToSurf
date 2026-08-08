@@ -140,6 +140,13 @@ def _save_disk_cache():
         print(f"[WARN] Disk cache opslaan mislukt: {e}")
 
 
+# Bovengrens op wat er nog uit de cache mag komen. Ruim boven CACHE_TTL, zodat
+# een hapering bij Open-Meteo niet meteen een leeg scherm oplevert, maar ver
+# onder de dag: een verwachting van gisteren is niet als oud te herkennen in de
+# grafiek en dus misleidend.
+_MAX_SERVE_AGE = timedelta(hours=6)
+
+
 def _cache_get(key, allow_stale=False):
     with _lock:
         entry = _cache.get(key)
@@ -150,6 +157,15 @@ def _cache_get(key, allow_stale=False):
             if allow_stale:
                 return data, True
     return None, False
+
+
+def _cache_leeftijd(key) -> timedelta:
+    """Hoe oud staat dit in de cache? timedelta.max als het er niet in staat."""
+    with _lock:
+        entry = _cache.get(key)
+        if not entry:
+            return timedelta.max
+        return datetime.now(timezone.utc) - entry[1]
 
 
 def _cache_set(key, data):
@@ -902,22 +918,41 @@ def _warm_model_bg(model: str):
 
 @app.route("/api/spots")
 def get_spots():
-    """Leest uit cache. Triggert achtergrond-warming als een model nog niet gecached is."""
+    """Leest uit cache, en zet een achtergrond-refresh in gang zodra die oud is.
+
+    Alleen best_match wordt periodiek ververst; de andere modellen worden
+    on-demand opgewarmd. Die warming werd echter alleen gestart als er nog
+    níéts in de cache stond. Zodra een model één keer was opgehaald, bleef het
+    zichzelf serveren — hoe oud ook. In de praktijk stond KNMI daardoor op data
+    van 24 april en GFS op 16 april, compleet met aprildatums in de grafiek.
+
+    Nu telt de leeftijd: verouderde data wordt nog wel teruggegeven zodat het
+    scherm niet leeg springt, maar er start meteen een refresh. Data ouder dan
+    _MAX_SERVE_AGE wordt helemaal niet meer gegeven — een verwachting van
+    maanden geleden is slechter dan even niets, want ze is niet als oud te
+    herkennen.
+    """
     model   = request.args.get("model", "best_match")
     results = []
+    verouderd = False
 
     for meta in SPOTS_META:
         key = (meta["id"], model)
-        cached, _ = _cache_get(key, allow_stale=True)
+        cached, is_stale = _cache_get(key, allow_stale=True)
+        if is_stale:
+            verouderd = True
+            if _cache_leeftijd(key) > _MAX_SERVE_AGE:
+                continue
         if cached is not None:
             try:
                 results.append(_apply_buienradar(cached, meta))
             except Exception:
                 results.append(cached)
 
-    # Als dit model helemaal niet in cache zit, warm het op de achtergrond op
-    if not results and model in _WARM_MODELS:
-        print(f"[INFO] Cache miss voor model '{model}', warming gestart…")
+    # Ontbrekend óf verouderd: allebei reden om op de achtergrond te verversen.
+    if (verouderd or not results) and model in _WARM_MODELS:
+        reden = "verouderd" if results else "niet gecached"
+        print(f"[INFO] Model '{model}' {reden}, warming gestart…")
         _warm_model_bg(model)
 
     return jsonify(results)
