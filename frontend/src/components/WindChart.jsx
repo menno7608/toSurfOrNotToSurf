@@ -369,7 +369,15 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
   }
 
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", backgroundColor: CREAM, padding: compact ? "4px 0 0 0" : "12px 0 0 0" }}>
+    /* `minHeight: 0` is hier geen detail. Een flex-item mag standaard niet
+       kleiner worden dan zijn inhoud, dus zonder deze regel hield deze kolom
+       vast aan de hoogte die de grafiek wil hebben. Kreeg hij van de ouder
+       minder ruimte, dan liep de inhoud gewoon buiten het vak door — en omdat
+       daar niets geknipt wordt, tekende de onderkant van de grafiek (de dagbalk
+       en de datumscheiding) over de weekstrip eronder. Gemeten: 361px inhoud in
+       een vak van 314px, dus 47px eroverheen: precies de dagnamen, datums en
+       icoontjes die onzichtbaar waren. */
+    <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", backgroundColor: CREAM, padding: compact ? "4px 0 0 0" : "12px 0 0 0" }}>
 
       {compact ? (
         /* ── Compacte header: titel + legenda op één regel ── */

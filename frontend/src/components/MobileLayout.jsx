@@ -515,7 +515,11 @@ export default function MobileLayout({
       </div>
 
       {/* ── GRAFIEK TABS + CHART + OVERLAYS ── */}
-      <div style={{ flex: 1, minHeight: "clamp(220px, 42vh, 420px)", display: "flex", flexDirection: "column", position: "relative" }}>
+      {/* `overflow: hidden` als vangnet: wat er ook misgaat met het meten van de
+          grafiekhoogte, er mag nooit meer iets buiten dit vak getekend worden.
+          Anders belandt het over de weekstrip eronder, en dan lijkt die strip
+          verdwenen terwijl hij er gewoon staat. */}
+      <div style={{ flex: 1, minHeight: "clamp(220px, 42vh, 420px)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
         <ChartTabs spot={spot} active={activeChart} onChange={setActiveChart} />
         {activeChart === "wind" && (
           <WindChart
