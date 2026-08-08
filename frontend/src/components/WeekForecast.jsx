@@ -51,7 +51,12 @@ export default function WeekForecast({ windDaily = [], unit = "kts", compact = f
         const date = new Date(day.date + "T12:00:00Z");
         const isToday = i === 0;
         const dayLabel = isToday ? "today" : EN_DAYS[date.getDay()];
-        const iconName = day.weatherCode != null ? (WMO_ICON[day.weatherCode] ?? "cloudy") : "cloudy";
+        /* Geen weercode betekent: dit model reikt niet tot deze dag. KNMI
+           Harmonie stopt na ongeveer drie dagen, Météo-France na vier. Hier
+           stond `: "cloudy"`, dus kreeg zo'n dag een bewolkt-icoon — een
+           voorspelling die niet bestaat, naast een streepje voor de wind.
+           Niets tonen is eerlijker dan iets verzinnen. */
+        const iconName = day.weatherCode != null ? (WMO_ICON[day.weatherCode] ?? "cloudy") : null;
         const windVal = day.windMax != null ? convertWind(day.windMax, unit).toFixed(0) : "—";
         const gustVal = day.gustMax != null ? convertWind(day.gustMax, unit).toFixed(0) : null;
 
@@ -93,24 +98,30 @@ export default function WeekForecast({ windDaily = [], unit = "kts", compact = f
 
             {/* Weer-icoon + temperatuur in compact */}
             {compact ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                <img
-                  src={`${import.meta.env.BASE_URL}weather-icons/${iconName}.png`}
-                  alt={iconName}
-                  style={{ height: 20, width: "auto", objectFit: "contain", marginLeft: -4 }}
-                />
+              <div style={{ display: "flex", alignItems: "center", gap: 3, height: 20 }}>
+                {iconName && (
+                  <img
+                    src={`${import.meta.env.BASE_URL}weather-icons/${iconName}.png`}
+                    alt={iconName}
+                    style={{ height: 20, width: "auto", objectFit: "contain", marginLeft: -4 }}
+                  />
+                )}
                 {day.tempMax != null && (
                   <span style={{ fontSize: 10, fontWeight: 700, color: C.dark }}>
                     {Math.round(day.tempMax)}°
                   </span>
                 )}
               </div>
-            ) : (
+            ) : iconName ? (
               <img
                 src={`${import.meta.env.BASE_URL}weather-icons/${iconName}.png`}
                 alt={iconName}
                 style={{ height: 26, width: "auto", objectFit: "contain" }}
               />
+            ) : (
+              /* Vaste hoogte, zodat de kaarten van dagen zonder data even hoog
+                 blijven als de rest en de rij niet gaat springen. */
+              <div style={{ height: 26 }} />
             )}
 
             {/* Wind max + richting */}
