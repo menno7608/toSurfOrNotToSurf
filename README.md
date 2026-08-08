@@ -1,4 +1,4 @@
-# Weather Dashboard — KustRadar 🌊
+# Weather Dashboard — toSurfOrNotToSurf 🌊
 
 **Live wind-, golf-, stromings- en getijdecondities voor kite- en surfspots.**
 
@@ -80,6 +80,21 @@ cd backend && source .venv/bin/activate && python app.py
 cd frontend && npm run dev
 ```
 Open **http://localhost:5173**.
+
+### Telefoon-app (PWA)
+
+De installeerbare telefoon-app heeft een eigen build en route; de bestaande desktop-build op `/` blijft apart:
+
+```bash
+cd frontend && npm run build:mobile
+```
+
+Open daarna **`https://<dashboard-host>/mobile/`**. Installeer op Android via
+Chrome → **App installeren** en op iPhone via Safari → **Deel** → **Zet op beginscherm**.
+
+De mobile build staat bewust los van de desktopbuild en kan later als bron dienen
+voor een Capacitor Android-shell. Een Android-beginschermwidget wordt vervolgens
+als native AppWidget toegevoegd; een PWA alleen kan zo'n widget niet aanbieden.
 
 ## Frontend opnieuw bouwen na aanpassingen
 

@@ -95,7 +95,7 @@ export default function WeekForecast({ windDaily = [], unit = "kts", compact = f
             {compact ? (
               <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                 <img
-                  src={`/weather-icons/${iconName}.png`}
+                  src={`${import.meta.env.BASE_URL}weather-icons/${iconName}.png`}
                   alt={iconName}
                   style={{ height: 20, width: "auto", objectFit: "contain", marginLeft: -4 }}
                 />
@@ -107,7 +107,7 @@ export default function WeekForecast({ windDaily = [], unit = "kts", compact = f
               </div>
             ) : (
               <img
-                src={`/weather-icons/${iconName}.png`}
+                src={`${import.meta.env.BASE_URL}weather-icons/${iconName}.png`}
                 alt={iconName}
                 style={{ height: 26, width: "auto", objectFit: "contain" }}
               />

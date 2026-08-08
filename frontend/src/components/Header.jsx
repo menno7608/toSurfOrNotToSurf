@@ -140,7 +140,7 @@ function WeatherIcon({ code, windSpeed }) {
   if ((code === 0 || code === 1) && windSpeed != null && windSpeed > 12) name = "windy";
   return (
     <img
-      src={`/weather-icons/${name}.png`}
+      src={`${import.meta.env.BASE_URL}weather-icons/${name}.png`}
       alt={name}
       style={{
         // Absoluut gepositioneerd: het icoon schaalt mee met de headerhoogte,

@@ -12,6 +12,7 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 # Gebouwde React-app serveren (na `npm run build`)
 REACT_BUILD     = os.path.join(os.path.dirname(__file__), "static", "app")
 REACT_DEV_BUILD = os.path.join(os.path.dirname(__file__), "static", "app-dev")
+REACT_MOBILE_BUILD = os.path.join(os.path.dirname(__file__), "static", "app-mobile")
 
 
 URL_FILE = os.path.join(os.path.dirname(__file__), "..", "URL.txt")
@@ -37,6 +38,21 @@ def serve_dev_app(path):
     if path and os.path.exists(full):
         return send_from_directory(REACT_DEV_BUILD, path)
     return send_from_directory(REACT_DEV_BUILD, "index.html")
+
+@app.route("/mobile/", defaults={"path": ""})
+@app.route("/mobile/<path:path>")
+def serve_mobile_app(path):
+    if not os.path.exists(REACT_MOBILE_BUILD):
+        return "Mobiele build niet beschikbaar. Voer eerst 'npm run build:mobile' uit.", 503
+    full = os.path.join(REACT_MOBILE_BUILD, path)
+    if path and os.path.isfile(full):
+        resp = send_from_directory(REACT_MOBILE_BUILD, path)
+        if path == "service-worker.js":
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return resp
+    resp = send_from_directory(REACT_MOBILE_BUILD, "mobile.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return resp
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")

@@ -18,18 +18,22 @@ import { useAlarmMatch } from "./hooks/useAlarmMatch.js";
 import { useSunTheme, getSunriseSunset } from "./hooks/useSunTheme.js";
 
 
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.innerWidth < 900);
+function useIsMobile(forceMobile = false) {
+  const [mobile, setMobile] = useState(() => forceMobile || window.innerWidth < 900);
   useEffect(() => {
+    if (forceMobile) {
+      setMobile(true);
+      return undefined;
+    }
     const mq = window.matchMedia("(max-width: 899px)");
     const handler = (e) => setMobile(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, []);
+  }, [forceMobile]);
   return mobile;
 }
 
-export default function App() {
+export default function App({ forceMobile = false }) {
   const [spots, setSpots] = useState([]);
   const [selectedId, setSelectedId] = useState(() => {
     try { return localStorage.getItem("selectedId") || ""; }
@@ -48,7 +52,7 @@ export default function App() {
   });
   const [weatherModel, setWeatherModel] = useState("best_match");
   const [loading, setLoading] = useState(false);
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobile(forceMobile);
 
   const [isDark, setIsDark] = useState(() => {
     // Initialise immediately from sun position so there's no theme flash on load
@@ -153,6 +157,7 @@ export default function App() {
   useEffect(() => {
     let lastLoadedAt = 0;
     let timer;
+    let retryTimer;
     let isCurrent = true;
 
     const load = () => {
@@ -166,6 +171,11 @@ export default function App() {
         .then((data) => {
           if (!isCurrent) return;
           if (!Array.isArray(data)) throw new Error("API returned no array");
+          if (data.length === 0) {
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(load, 2_000);
+            return;
+          }
           setSpots(data);
           setSelectedId((prev) => {
             if (prev && data.some((s) => s.id === prev)) return prev;
@@ -204,6 +214,7 @@ export default function App() {
     return () => {
       isCurrent = false;
       clearTimeout(timer);
+      clearTimeout(retryTimer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [weatherModel]);
