@@ -132,20 +132,45 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
     if (windowWheelRef.current) window.removeEventListener("wheel", windowWheelRef.current);
   }, []);
   const [chartH, setChartH] = useState(260);
+  const resizeObsRef = useRef(null);
 
-  // Meet de hoogte van de scroll-container en gebruik die voor de chart
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const h = entry.contentRect.height;
+  /* De scroll-container wordt via een callback-ref opgemeten, niet via een
+     effect met lege deps.
+
+     Waarom dat verschil telt: bij de eerste render is er nog geen winddata en
+     rendert deze component alleen "No wind data" — de scroll-container bestaat
+     dan niet. Een effect dat één keer draait vond `scrollRef.current === null`,
+     stopte, en draaide daarna nooit meer, ook niet toen de data binnenkwam en
+     de container er wél was. Daardoor bleef `chartH` op de beginwaarde 260
+     staan, ook als er maar 244px beschikbaar was. Die 16px overschot plus de
+     36px dagbalk liepen buiten het vak: eerst over de weekstrip heen, en nadat
+     die container ging knippen waren de uren en de dagbalk onder de grafiek
+     domweg weg.
+
+     Een callback-ref draait wél opnieuw zodra het element verschijnt of
+     verdwijnt, en meet dus altijd het echte vak op. */
+  const koppelScrollContainer = useCallback((node) => {
+    if (resizeObsRef.current) {
+      resizeObsRef.current.disconnect();
+      resizeObsRef.current = null;
+    }
+    scrollRef.current = node;
+    if (!node) return;
+
+    const meet = (h) => {
       // Compact: geen footer, alleen dag-strip (36px SVG, overlapt 16px → netto 20px).
       // Normaal: footer (~20px) + dag-strip (20px netto) = 40px aftrek.
       const overhead = compact ? 20 : 40;
       if (h > 40) setChartH(Math.max(80, h - overhead));
-    });
-    ro.observe(scrollRef.current);
-    return () => ro.disconnect();
-  }, []);
+    };
+
+    meet(node.getBoundingClientRect().height);
+    const ro = new ResizeObserver(([entry]) => meet(entry.contentRect.height));
+    ro.observe(node);
+    resizeObsRef.current = ro;
+  }, [compact]);
+
+  useEffect(() => () => resizeObsRef.current?.disconnect(), []);
 
   const allRows = useMemo(() => [
     ...(past     ?? []).map((x) => ({ ...x, kind: "past" })),
@@ -452,7 +477,7 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
 
       {/* Scrollbaar deel zonder Y-as */}
       <div
-        ref={scrollRef}
+        ref={koppelScrollContainer}
         className="hide-scrollbar"
         style={{
           flex: 1, minHeight: 0, overflowX: "auto", overflowY: "hidden",
