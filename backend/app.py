@@ -330,12 +330,15 @@ def _parse_met_norway(data: dict) -> dict:
 
 
 def _wave_power_kj(hs, tp) -> float | None:
-    """Golfvermogen P ≈ 0,5 · Hs² · Tp (kW per meter golffront, deepwater-
-    vuistregel). Zelfde grootte-orde als de 'Energy'-waarde die surf-apps
-    tonen (die noemen dit vermogen doorgaans ook 'energy' in kJ)."""
+    """Golfvermogen-index E ≈ 10 · Hs² · Tp, kalibratie tegen de schaal die
+    surf-apps hanteren (Surf-Forecast: ~100 kJ net surfbaar, 200-1000 kJ
+    stevig). De 'echte' natuurkundige golfvermogenformule (ρg²Hs²Tp/64π,
+    coëfficiënt ~0,5 kW/m) ligt een factor ~20 lager dan wat die apps tonen;
+    deze constante is empirisch teruggerekend uit Essaouira-cijfers zodat
+    onze schaal met die apps overeenkomt, niet een SI-eenheid."""
     if hs is None or tp is None:
         return None
-    return 0.5 * (hs ** 2) * tp
+    return 10 * (hs ** 2) * tp
 
 
 def _fetch_marine(lat, lon):

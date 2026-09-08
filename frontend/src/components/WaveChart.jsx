@@ -167,7 +167,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
           <MiniChart
             data={energyData}
             unit="kJ"
-            yTicks={[0, 25, 50, 100]}
+            yTicks={[0, 100, 200, 400]}
             height="100%"
             xKey="_key"
             nowT={marineNowT}
