@@ -1,3 +1,5 @@
+import { fmtUpdatedAt } from "../time.js";
+
 const UNITS = ["kts", "m/s", "km/h"];
 
 export default function SpotInfo({ spot, unit = "kts", onUnitChange }) {
@@ -23,7 +25,7 @@ export default function SpotInfo({ spot, unit = "kts", onUnitChange }) {
         </span>
         {spot.liveAt && (
           <span className="text-xs text-slate-400">
-            updated at: {spot.liveAt.slice(11, 16)}
+            updated at: {fmtUpdatedAt(spot.liveAt, spot.utcOffset)}
           </span>
         )}
       </div>
@@ -34,6 +36,7 @@ export default function SpotInfo({ spot, unit = "kts", onUnitChange }) {
         <Metric label="Dir" value={fmt(l.windDir, "°")} />
         <Metric label="Wave" value={fmt(l.waveHeight, "m")} />
         <Metric label="Period" value={fmt(l.wavePeriod, "s")} />
+        <Metric label="Energy" value={fmt(l.waveEnergy, "kJ/m²")} />
         <Metric label="Tide" value={fmt(l.tide, "m")} />
         {l.currentSpeed != null && (
           <Metric label="Current" value={`${l.currentSpeed.toFixed(1)} kts`} sub={fmtCompass(l.currentDirection)} />

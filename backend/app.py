@@ -236,7 +236,9 @@ def _fetch_weather(lat, lon, model):
             "latitude": lat, "longitude": lon,
             "hourly":   "wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,apparent_temperature,weathercode,precipitation",
             "daily":    "wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,weathercode,temperature_2m_max,temperature_2m_min",
-            "past_hours": 12,
+            # Een volle dag terug in plaats van twaalf uur: de dagenstrip toont
+            # gisteren, en dan moet de grafiek daar ook heen kunnen scrollen.
+            "past_days": 1,
             "forecast_days": 7,
             "wind_speed_unit": "ms",
             "timezone": "auto",
@@ -327,6 +329,17 @@ def _parse_met_norway(data: dict) -> dict:
     }
 
 
+_SEAWATER_RHO = 1025    # kg/m³
+_GRAVITY      = 9.81    # m/s²
+
+def _wave_energy_kj(hs) -> float | None:
+    """Golfenergiedichtheid E = ρ·g·Hs² / 16, in kJ/m² (deepwater-benadering)."""
+    if hs is None:
+        return None
+    joules_per_m2 = _SEAWATER_RHO * _GRAVITY * (hs ** 2) / 16
+    return joules_per_m2 / 1000
+
+
 def _fetch_marine(lat, lon):
     with _om_semaphore:
         r = req.get("https://marine-api.open-meteo.com/v1/marine", params={
@@ -339,7 +352,10 @@ def _fetch_marine(lat, lon):
                 "ocean_current_velocity,ocean_current_direction,"
                 "sea_level_height_msl"
             ),
-            "past_hours": 12, "forecast_hours": 240,
+            # Zelfde terugblik als de winddata, anders lopen golven en wind niet
+            # gelijk op zodra je een dag terug kijkt. Hier `past_hours` en geen
+            # `past_days`: naast `forecast_hours` negeert de marine-API die.
+            "past_hours": 24, "forecast_hours": 240,
             "timezone": "auto",
         }, timeout=15)
         r.raise_for_status()
@@ -713,6 +729,7 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
                 "date": local_str[:10],
                 "hs": round(hs, 2),
                 "tp": round(m_tp[i], 2) if i < len(m_tp) and m_tp[i] else None,
+                "energy": round(_wave_energy_kj(hs), 1),
             }
             if i < len(m_swh) and m_swh[i]:
                 entry["swh"]   = round(m_swh[i], 2)
@@ -752,6 +769,7 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
             "windDir":    live_dir,
             "waveHeight": round(wave_h, 1) if wave_h is not None else None,
             "wavePeriod": round(wave_p, 1) if wave_p is not None else None,
+            "waveEnergy": round(_wave_energy_kj(wave_h), 1) if wave_h is not None else None,
             "tide":            None,
             "currentSpeed":    current_speed,
             "currentDirection": current_dir,

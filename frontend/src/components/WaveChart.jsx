@@ -69,8 +69,9 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
   })), [marine]);
 
   const nowEntry = useMemo(() => marine.find((p) => p._key === marineNowT), [marine, marineNowT]);
-  const hs  = nowEntry?.hs  ?? spot?.live?.waveHeight;
-  const tp  = nowEntry?.tp  ?? spot?.live?.wavePeriod;
+  const hs     = nowEntry?.hs     ?? spot?.live?.waveHeight;
+  const tp     = nowEntry?.tp     ?? spot?.live?.wavePeriod;
+  const energy = nowEntry?.energy ?? spot?.live?.waveEnergy;
   const swp = nowEntry?.swp ?? null;
   const quality = waveQuality(swp ?? tp);
 
@@ -91,9 +92,16 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
 
       {/* ── GOLFHOOGTE ── */}
       <div style={{ flex: 3, minHeight: 0, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFHOOGTE</span>
-          <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>{fmtWave(hs, waveUnit)}</span>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>{fmtWave(hs, waveUnit)}</span>
+            {energy != null && (
+              <div style={{ fontSize: 9, fontWeight: 600, color: C.border, opacity: 0.7 }}>
+                {energy.toFixed(1)} kJ/m²
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MiniChart
