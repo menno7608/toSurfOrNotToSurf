@@ -68,6 +68,11 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
     v: p.swp ?? p.tp,
   })), [marine]);
 
+  const energyData = useMemo(() => marine.map((p) => ({
+    ...p,
+    v: p.energy,
+  })), [marine]);
+
   const nowEntry = useMemo(() => marine.find((p) => p._key === marineNowT), [marine, marineNowT]);
   const hs     = nowEntry?.hs     ?? spot?.live?.waveHeight;
   const tp     = nowEntry?.tp     ?? spot?.live?.wavePeriod;
@@ -124,7 +129,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       </div>
 
       {/* ── SWELL PERIODE ── */}
-      <div style={{ flex: 2, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 2, minHeight: 0, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>SWELL PERIOD</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -150,6 +155,27 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
             lineColor={quality?.color ?? C.border}
             height="100%"
             bands={SWELL_BANDS}
+            xKey="_key"
+            nowT={marineNowT}
+            scrollable
+          />
+        </div>
+      </div>
+
+      {/* ── GOLFENERGIE ── */}
+      <div style={{ flex: 2, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFENERGIE</span>
+          <span style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>
+            {energy != null ? `${Number(energy).toFixed(1)} kJ/m²` : "—"}
+          </span>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <MiniChart
+            data={energyData}
+            unit="kJ/m²"
+            yTicks={[0, 2, 4, 8]}
+            height="100%"
             xKey="_key"
             nowT={marineNowT}
             scrollable
