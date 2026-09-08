@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import MiniChart from "./MiniChart.jsx";
 import { useTheme } from "../theme.js";
 
@@ -53,6 +53,10 @@ function fmtWave(m, waveUnit) {
 export default function WaveChart({ spot, waveUnit = "m" }) {
   const C = useTheme();
 
+  const [activeWave,  setActiveWave]  = useState(null);
+  const [activeSwell, setActiveSwell] = useState(null);
+  const [activeEnergy, setActiveEnergy] = useState(null);
+
   const nowMs = Date.now() + (spot?.utcOffset ?? 0) * 1000;
   const marine = useMemo(() => filterMarine(spot?.marine, nowMs), [spot?.marine, nowMs]);
   const marineNowT = useMemo(() => nowKey(marine, nowMs), [marine, nowMs]);
@@ -99,7 +103,14 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       <div style={{ flex: "0 0 auto", height: 180, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFHOOGTE</span>
-          <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>{fmtWave(hs, waveUnit)}</span>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>
+              {fmtWave(activeWave ? activeWave.v : hs, waveUnit)}
+            </span>
+            <div style={{ fontSize: 9, color: C.border, opacity: 0.6 }}>
+              {activeWave ? activeWave.t : "nu"}
+            </div>
+          </div>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MiniChart
@@ -111,6 +122,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
             xKey="_key"
             nowT={marineNowT}
             scrollable
+            onActiveChange={setActiveWave}
           />
         </div>
         {startDate !== endDate && (
@@ -126,9 +138,16 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>SWELL PERIOD</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 18, fontWeight: 900, color: quality?.color ?? C.dark }}>
-              {(swp ?? tp) != null ? `${Number(swp ?? tp).toFixed(0)}s` : "—"}
-            </span>
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: quality?.color ?? C.dark }}>
+                {activeSwell
+                  ? (activeSwell.v != null ? `${Number(activeSwell.v).toFixed(0)}s` : "—")
+                  : ((swp ?? tp) != null ? `${Number(swp ?? tp).toFixed(0)}s` : "—")}
+              </span>
+              <div style={{ fontSize: 9, color: C.border, opacity: 0.6 }}>
+                {activeSwell ? activeSwell.t : "nu"}
+              </div>
+            </div>
             {quality && (
               <span style={{
                 fontSize: 8, fontWeight: 700, letterSpacing: "0.04em",
@@ -151,6 +170,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
             xKey="_key"
             nowT={marineNowT}
             scrollable
+            onActiveChange={setActiveSwell}
           />
         </div>
       </div>
@@ -159,9 +179,16 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       <div style={{ flex: "0 0 auto", height: 150, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFENERGIE</span>
-          <span style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>
-            {energy != null ? `${Number(energy).toFixed(0)} kJ` : "—"}
-          </span>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>
+              {(activeEnergy ? activeEnergy.v : energy) != null
+                ? `${Number(activeEnergy ? activeEnergy.v : energy).toFixed(0)} kJ`
+                : "—"}
+            </span>
+            <div style={{ fontSize: 9, color: C.border, opacity: 0.6 }}>
+              {activeEnergy ? activeEnergy.t : "nu"}
+            </div>
+          </div>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MiniChart
@@ -172,6 +199,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
             xKey="_key"
             nowT={marineNowT}
             scrollable
+            onActiveChange={setActiveEnergy}
           />
         </div>
       </div>

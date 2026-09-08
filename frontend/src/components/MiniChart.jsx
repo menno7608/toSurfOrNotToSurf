@@ -56,12 +56,49 @@ export default function MiniChart({
     setViewStart((s) => Math.max(0, Math.min(data.length - VIEW_COUNT, s + dir * 2)));
   }, [data]);
 
+  // Vinger-swipe: alleen als horizontale beweging domineert, anders laten we
+  // de verticale scroll van de pagina (om bij de volgende grafiek te komen)
+  // gewoon doorlopen.
+  const touchRef = useRef({ x: 0, y: 0, startViewStart: 0, dragging: false });
+
+  const handleTouchStart = useCallback((e) => {
+    if (!data?.length || e.touches.length !== 1) return;
+    touchRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      startViewStart: viewStart,
+      dragging: false,
+    };
+  }, [data, viewStart]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!data?.length || e.touches.length !== 1) return;
+    const t = touchRef.current;
+    const dx = e.touches[0].clientX - t.x;
+    const dy = e.touches[0].clientY - t.y;
+    if (!t.dragging) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      t.dragging = Math.abs(dx) > Math.abs(dy);
+      if (!t.dragging) return;
+    }
+    e.preventDefault();
+    const PX_PER_STEP = 28;
+    const steps = Math.round(-dx / PX_PER_STEP);
+    setViewStart(Math.max(0, Math.min(data.length - VIEW_COUNT, t.startViewStart + steps)));
+  }, [data]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !scrollable) return;
     el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
-  }, [scrollable, handleWheel]);
+    el.addEventListener("touchstart", handleTouchStart, { passive: true });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [scrollable, handleWheel, handleTouchStart, handleTouchMove]);
 
   if (!data?.length) {
     return (
