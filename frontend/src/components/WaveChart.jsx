@@ -93,20 +93,13 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: C.cream, overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: C.cream, overflowY: "auto", overflowX: "hidden" }}>
 
       {/* ── GOLFHOOGTE ── */}
-      <div style={{ flex: 3, minHeight: 0, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", padding: "6px 16px 4px", flexShrink: 0 }}>
+      <div style={{ flex: "0 0 auto", height: 180, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFHOOGTE</span>
-          <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>{fmtWave(hs, waveUnit)}</span>
-            {energy != null && (
-              <div style={{ fontSize: 9, fontWeight: 600, color: C.border, opacity: 0.7 }}>
-                {energy.toFixed(1)} kJ/m²
-              </div>
-            )}
-          </div>
+          <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>{fmtWave(hs, waveUnit)}</span>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MiniChart
@@ -129,7 +122,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       </div>
 
       {/* ── SWELL PERIODE ── */}
-      <div style={{ flex: 2, minHeight: 0, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
+      <div style={{ flex: "0 0 auto", height: 150, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>SWELL PERIOD</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -163,18 +156,18 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       </div>
 
       {/* ── GOLFENERGIE ── */}
-      <div style={{ flex: 2, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: "0 0 auto", height: 150, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFENERGIE</span>
           <span style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>
-            {energy != null ? `${Number(energy).toFixed(1)} kJ/m²` : "—"}
+            {energy != null ? `${Number(energy).toFixed(0)} kJ` : "—"}
           </span>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MiniChart
             data={energyData}
-            unit="kJ/m²"
-            yTicks={[0, 2, 4, 8]}
+            unit="kJ"
+            yTicks={[0, 25, 50, 100]}
             height="100%"
             xKey="_key"
             nowT={marineNowT}

@@ -329,15 +329,13 @@ def _parse_met_norway(data: dict) -> dict:
     }
 
 
-_SEAWATER_RHO = 1025    # kg/m³
-_GRAVITY      = 9.81    # m/s²
-
-def _wave_energy_kj(hs) -> float | None:
-    """Golfenergiedichtheid E = ρ·g·Hs² / 16, in kJ/m² (deepwater-benadering)."""
-    if hs is None:
+def _wave_power_kj(hs, tp) -> float | None:
+    """Golfvermogen P ≈ 0,5 · Hs² · Tp (kW per meter golffront, deepwater-
+    vuistregel). Zelfde grootte-orde als de 'Energy'-waarde die surf-apps
+    tonen (die noemen dit vermogen doorgaans ook 'energy' in kJ)."""
+    if hs is None or tp is None:
         return None
-    joules_per_m2 = _SEAWATER_RHO * _GRAVITY * (hs ** 2) / 16
-    return joules_per_m2 / 1000
+    return 0.5 * (hs ** 2) * tp
 
 
 def _fetch_marine(lat, lon):
@@ -724,12 +722,13 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
             hs = m_hs[i] if i < len(m_hs) else None
             if hs is None:
                 continue
+            tp_i = m_tp[i] if i < len(m_tp) and m_tp[i] else None
             entry = {
                 "t":    local_str[11:16],
                 "date": local_str[:10],
                 "hs": round(hs, 2),
-                "tp": round(m_tp[i], 2) if i < len(m_tp) and m_tp[i] else None,
-                "energy": round(_wave_energy_kj(hs), 1),
+                "tp": round(tp_i, 2) if tp_i is not None else None,
+                "energy": round(_wave_power_kj(hs, tp_i), 1) if tp_i is not None else None,
             }
             if i < len(m_swh) and m_swh[i]:
                 entry["swh"]   = round(m_swh[i], 2)
@@ -769,7 +768,7 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
             "windDir":    live_dir,
             "waveHeight": round(wave_h, 1) if wave_h is not None else None,
             "wavePeriod": round(wave_p, 1) if wave_p is not None else None,
-            "waveEnergy": round(_wave_energy_kj(wave_h), 1) if wave_h is not None else None,
+            "waveEnergy": round(_wave_power_kj(wave_h, wave_p), 1) if wave_h is not None and wave_p is not None else None,
             "tide":            None,
             "currentSpeed":    current_speed,
             "currentDirection": current_dir,

@@ -36,7 +36,7 @@ export default function SpotInfo({ spot, unit = "kts", onUnitChange }) {
         <Metric label="Dir" value={fmt(l.windDir, "°")} />
         <Metric label="Wave" value={fmt(l.waveHeight, "m")} />
         <Metric label="Period" value={fmt(l.wavePeriod, "s")} />
-        <Metric label="Energy" value={fmt(l.waveEnergy, "kJ/m²")} />
+        <Metric label="Energy" value={fmt(l.waveEnergy, "kJ")} />
         <Metric label="Tide" value={fmt(l.tide, "m")} />
         {l.currentSpeed != null && (
           <Metric label="Current" value={`${l.currentSpeed.toFixed(1)} kts`} sub={fmtCompass(l.currentDirection)} />
