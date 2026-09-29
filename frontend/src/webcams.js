@@ -6,6 +6,7 @@
 // YouTube:      https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1
 // CamStreamer:  https://camstreamer.com/embed/STREAM_ID
 // Netcamviewer: https://live.netcamviewer.nl/Webcam-NAAM/ID
+// HLS:          elke URL die op .m3u8 eindigt → <video> met hls.js (zie HlsVideo.jsx)
 
 const WEBCAMS = {
 
@@ -99,8 +100,18 @@ const WEBCAMS = {
     { label: "Atlantis",  url: "https://www.youtube.com/embed/EcumU_n6fTY?autoplay=1&mute=1" },
   ],
 
+  // ── HLS-STREAMS (.m3u8, via <video> + hls.js; gecontroleerd 29-09-2026) ──
+
+  "wijk-aan-zee": [
+    { label: "De Hangout", url: "https://webcam.dehangout.nl/stream.m3u8" },
+  ],
+
+  "enkhuizen": [
+    { label: "Enkhuizen", url: "https://6162417352ffd.streamlock.net/live/enkhuizen.stream/playlist.m3u8" },
+  ],
+
   // ── GEEN EMBEDBARE STREAM GEVONDEN ──────────────────────────────────────
-  // wijk-aan-zee   → HLS-only: https://webcam.dehangout.nl/stream.m3u8
+  // workum         → HLS-stream (streamlock.net/live/workumptz) geeft 404 sinds ≤ 29-09-2026
   // terschelling   → Lookr timelapse, geen YouTube
   // callantsoog    → eigen platform (strandpaviljoendetoko.nl), geen YouTube
   // makkum         → Windfinder-embed, niet iframe-baar

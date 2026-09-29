@@ -1,5 +1,6 @@
 import React from "react";
 import WEBCAMS from "../webcams.js";
+import HlsVideo from "./HlsVideo.jsx";
 import { useTheme } from "../theme.js";
 
 export default function WebcamOverlay({ spot }) {
@@ -46,14 +47,19 @@ export default function WebcamOverlay({ spot }) {
             ))}
           </div>
         )}
-        <iframe
-          key={activeCam.url}
-          src={activeCam.url}
-          title={activeCam.label}
-          allow="autoplay; fullscreen"
-          allowFullScreen
-          style={{ flex: 1, border: "none", display: "block", width: "100%" }}
-        />
+        {/\.m3u8(\?|$)/.test(activeCam.url) ? (
+          <HlsVideo key={activeCam.url} url={activeCam.url} title={activeCam.label}
+            fallbackUrl={webcamUrl} accent={C.border} />
+        ) : (
+          <iframe
+            key={activeCam.url}
+            src={activeCam.url}
+            title={activeCam.label}
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            style={{ flex: 1, border: "none", display: "block", width: "100%" }}
+          />
+        )}
       </div>
     );
   }
