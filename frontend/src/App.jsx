@@ -159,6 +159,7 @@ export default function App({ forceMobile = false }) {
     let timer;
     let retryTimer;
     let isCurrent = true;
+    const spreiding = Math.floor(Math.random() * 180_000);
 
     const load = () => {
       lastLoadedAt = Date.now();
@@ -194,7 +195,10 @@ export default function App({ forceMobile = false }) {
       clearTimeout(timer);
       const now = new Date();
       const msIntoInterval = ((now.getMinutes() % 10) * 60 + now.getSeconds()) * 1000 + now.getMilliseconds();
-      const msUntilNext = 10 * 60 * 1000 - msIntoInterval + 30 * 1000;
+      // + spreiding per tabblad: zonder die spreiding vroeg élk open tabblad om
+      // hh:m0:30 tegelijk 1,5 MB op, en de uplink van de Pi haalt er ± 0,7 per
+      // seconde (audit 29-09). Nog steeds ná de 10-minutenronde van de bronnen.
+      const msUntilNext = 10 * 60 * 1000 - msIntoInterval + 30 * 1000 + spreiding;
       timer = setTimeout(() => { load(); scheduleNext(); }, msUntilNext);
     };
 

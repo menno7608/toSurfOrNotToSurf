@@ -1,9 +1,10 @@
-Flask
-gunicorn
-requests
-apscheduler
-python-dotenv
-numpy
-cfgrib
-xarray
-scipy
+# Vastgezet op de versies die in productie draaien (29-09-2026, audit F8).
+Flask==3.1.2
+gunicorn==25.3.0
+requests==2.32.5
+apscheduler==3.11.2
+python-dotenv==1.2.1
+numpy==2.4.4
+cfgrib==0.9.15.1
+xarray==2026.2.0
+scipy==1.17.1

@@ -8,6 +8,8 @@ import requests as req
 import knmi_harmonie as harmonie
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+import webwacht
+webwacht.installeer(app)
 
 # Gebouwde React-app serveren (na `npm run build`)
 REACT_BUILD     = os.path.join(os.path.dirname(__file__), "static", "app")
@@ -108,7 +110,8 @@ def _get_harmonie_data() -> dict:
 _cache: dict = {}
 _lock         = threading.Lock()
 CACHE_TTL     = timedelta(minutes=30)
-_DISK_CACHE   = os.path.join(os.path.dirname(__file__), "cache.json")
+# Instelbaar zodat tests en kopieën nooit de productiecache overschrijven.
+_DISK_CACHE   = os.environ.get("WEERCACHE_PAD") or os.path.join(os.path.dirname(__file__), "cache.json")
 
 
 def _load_disk_cache():
@@ -134,8 +137,12 @@ def _save_disk_cache():
             f"{k[0]}|{k[1]}": {"data": v[0], "ts": v[1].isoformat()}
             for k, v in snapshot.items()
         }
-        with open(_DISK_CACHE, "w") as f:
+        # Eerst naar een tijdelijk bestand, dan in één stap vervangen: een crash
+        # halverwege laat zo de vorige cache heel in plaats van een halve.
+        tijdelijk = _DISK_CACHE + ".tmp"
+        with open(tijdelijk, "w") as f:
             _json.dump(raw, f)
+        os.replace(tijdelijk, _DISK_CACHE)
     except Exception as e:
         print(f"[WARN] Disk cache opslaan mislukt: {e}")
 
@@ -176,7 +183,21 @@ def _cache_set(key, data):
 _load_disk_cache()
 
 
-# ── Buienradar live (10-min) ──────────────────────────────────────────────────
+# ── Live-metingen (Buienradar, Weather2Kite) ─────────────────────────────────
+# Tot 29-09 werden deze twee bronnen binnen het verzoek aangeroepen, per spot en
+# zonder negatieve cache. Hing één van beide, dan betaalde elke spot de volle
+# time-out en wachtte de (enige) worker tot gunicorn hem na 300 s doodde: de hele
+# site plat, ook /api/health. Gemeten op een kopie (audit 29-09) en in productie
+# 14× gebeurd (16-08, 31-08, 01-09). Nu ververst alleen een achtergrondthread
+# (_live_verversen) deze bronnen; het verzoek leest uitsluitend de snapshot.
+_LIVE_TIMEOUT      = 4                       # seconden per externe call
+_LIVE_INTERVAL     = 60                      # hoe vaak de thread kijkt
+_LIVE_MAX_LEEFTIJD = timedelta(minutes=30)   # oudere snapshot telt niet als live
+_live_status: dict = {
+    "buienradar":   {"ok_ts": None, "fout": None, "fout_ts": None},
+    "weather2kite": {"ok_ts": None, "fout": None, "fout_ts": None},
+}
+
 _br_cache: dict = {"data": None, "ts": None}
 _br_lock = threading.Lock()
 
@@ -186,7 +207,7 @@ def _fetch_buienradar() -> list:
             if datetime.now(timezone.utc) - _br_cache["ts"] < timedelta(minutes=10):
                 return _br_cache["data"]
         # HTTP call binnen de lock zodat slechts één thread tegelijk fetcht
-        r = req.get("https://data.buienradar.nl/2.0/feed/json", timeout=10)
+        r = req.get("https://data.buienradar.nl/2.0/feed/json", timeout=_LIVE_TIMEOUT)
         r.raise_for_status()
         stations = r.json().get("actual", {}).get("stationmeasurements", [])
         _br_cache["data"] = stations
@@ -439,7 +460,7 @@ def _fetch_weather2kite_all() -> dict[int, dict]:
             "User-Agent": "Mozilla/5.0 (compatible; toSurfOrNotToSurf/1.0)",
             "Referer": "https://www.weather2kite.nl/web/spotinfo",
         },
-        timeout=15,
+        timeout=_LIVE_TIMEOUT,
     )
     r.raise_for_status()
 
@@ -475,9 +496,46 @@ def _fetch_weather2kite_all() -> dict[int, dict]:
     return fresh
 
 
-def _fetch_weather2kite_live(spot_id: int) -> dict | None:
-    """Laatste lokale 10-minutenmeting voor één Weather2Kite-station."""
-    return _fetch_weather2kite_all().get(spot_id)
+def _weather2kite_live(spot_id: int) -> dict | None:
+    """Laatste lokale meting voor één Weather2Kite-station, uit de snapshot.
+
+    Doet nooit zelf een verzoek; zie `_live_verversen`."""
+    snap = _weather2kite_snapshot
+    if not snap or datetime.now(timezone.utc) - snap[0] > _LIVE_MAX_LEEFTIJD:
+        return None
+    return snap[1].get(spot_id)
+
+
+def _buienradar_stations() -> list:
+    """Buienradar-stations uit de snapshot; leeg als die te oud is of ontbreekt."""
+    ts = _br_cache["ts"]
+    if not ts or datetime.now(timezone.utc) - ts > _LIVE_MAX_LEEFTIJD:
+        return []
+    return _br_cache["data"] or []
+
+
+def _live_ververs_een(naam: str, fetch) -> None:
+    status = _live_status[naam]
+    try:
+        fetch()
+        status["ok_ts"], status["fout"] = datetime.now(timezone.utc), None
+    except Exception as e:
+        status["fout"], status["fout_ts"] = str(e)[:200], datetime.now(timezone.utc)
+        print(f"[WARN] live {naam}: {e}")
+
+
+def _live_verversen() -> None:
+    """Achtergrondthread: houdt beide live-snapshots vers.
+
+    De fetches hebben hun eigen TTL (Buienradar 10 min, W2K 5 min), dus elke
+    minuut kijken kost alleen een verzoek als de snapshot verlopen is. Een
+    mislukte poging wordt na één interval opnieuw geprobeerd: dat ís de
+    negatieve cache, en hij kost geen bezoeker ooit wachttijd."""
+    import time
+    while True:
+        _live_ververs_een("buienradar", _fetch_buienradar)
+        _live_ververs_een("weather2kite", _fetch_weather2kite_all)
+        time.sleep(_LIVE_INTERVAL)
 
 
 def _parse_time(ts: str) -> datetime:
@@ -821,16 +879,13 @@ def _parse_daily(raw: dict | None) -> list:
 
 
 def _apply_buienradar(spot: dict, meta: dict) -> dict:
-    """Overlay live wind met verse Buienradar-meting (eigen 10-min cache)."""
+    """Overlay live wind uit de snapshots (Weather2Kite, anders Buienradar).
+
+    Leest alleen; de snapshots ververst `_live_verversen` op de achtergrond."""
     try:
         if "weather2kite_spot" in meta:
-            # Eigen try: valt Weather2Kite weg, dan hoort deze spot terug te vallen
-            # op Buienradar en niet zonder live wind te blijven zitten.
-            try:
-                local = _fetch_weather2kite_live(meta["weather2kite_spot"])
-            except Exception as e:
-                print(f"[WARN] Weather2Kite {meta['id']}: {e}")
-                local = None
+            # Geen W2K-meting, dan valt deze spot terug op Buienradar.
+            local = _weather2kite_live(meta["weather2kite_spot"])
             if local:
                 import copy
                 spot = copy.copy(spot)
@@ -853,8 +908,7 @@ def _apply_buienradar(spot: dict, meta: dict) -> dict:
                 spot["liveAt"] = local["dt"].isoformat(timespec="minutes")
                 return spot
 
-        br_stations = _fetch_buienradar()
-        br = _nearest_br_station(meta["lat"], meta["lon"], br_stations)
+        br = _nearest_br_station(meta["lat"], meta["lon"], _buienradar_stations())
         if not br:
             return spot
         import copy
@@ -900,9 +954,40 @@ def _get_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> dict
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
+_GESTART = datetime.now(timezone.utc)
+# Ouder dan dit betekent dat verversen al een paar rondes niet lukt (TTL 30 min,
+# ronde elke 25 min). Dan is de site "op" maar toont hij verouderde verwachtingen.
+_HEALTH_MAX_LEEFTIJD = timedelta(minutes=90)
+
+
+def _iso(ts):
+    return ts.isoformat(timespec="seconds") if ts else None
+
+
 @app.route("/api/health")
 def health():
-    return jsonify({"ok": True})
+    """Zegt of de site bruikbare data heeft, niet alleen dat het proces leeft.
+
+    503 als de nieuwste best_match-data ouder is dan _HEALTH_MAX_LEEFTIJD: zo ziet
+    een monitor een vastgelopen verversing, niet pas een klagende bezoeker."""
+    nu = datetime.now(timezone.utc)
+    with _lock:
+        leeftijden = [nu - ts for (spot_id, model), (_, ts) in _cache.items()
+                      if model == "best_match"]
+    nieuwste = min(leeftijden) if leeftijden else None
+    oudste = max(leeftijden) if leeftijden else None
+    gezond = nieuwste is not None and nieuwste <= _HEALTH_MAX_LEEFTIJD
+    live = {naam: {"ok": _iso(s["ok_ts"]), "fout": s["fout"], "fout_op": _iso(s["fout_ts"])}
+            for naam, s in _live_status.items()}
+    return jsonify({
+        "ok": gezond,
+        "spots": len(leeftijden),
+        "spots_verwacht": len(SPOTS_META),
+        "cache_nieuwste_s": int(nieuwste.total_seconds()) if nieuwste else None,
+        "cache_oudste_s": int(oudste.total_seconds()) if oudste else None,
+        "live": live,
+        "uptime_s": int((nu - _GESTART).total_seconds()),
+    }), (200 if gezond else 503)
 
 
 _warming_models: set = set()
@@ -1059,6 +1144,7 @@ def _schedule_refresh():
 
 
 _schedule_refresh()
+threading.Thread(target=_live_verversen, daemon=True).start()
 
 
 if __name__ == "__main__":
