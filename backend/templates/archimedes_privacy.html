@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archimedes OS — Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto; padding: 2.5rem 1.25rem 5rem; max-width: 46rem;
+    font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; margin: 2.25rem 0 .5rem; }
+  .sub { color: #6b7280; margin: 0 0 2rem; }
+  table { border-collapse: collapse; width: 100%; margin: .75rem 0; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: .45rem .6rem; border-bottom: 1px solid rgba(128,128,128,.3); }
+  th { font-weight: 600; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+  ul { padding-left: 1.2rem; }
+  li { margin: .3rem 0; }
+  footer { margin-top: 3rem; font-size: .9rem; color: #6b7280; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy — Archimedes OS</h1>
+<p class="sub">Last updated: 11 September 2026</p>
+
+<p>
+  Archimedes OS is a personal, single-user system operated by Menno Boot. It runs
+  on a private Raspberry Pi at the operator's home and is used by one person: its
+  owner. It is not a product, not a service offered to others, and it has no
+  other users, customers or visitors.
+</p>
+<p>
+  This page describes exactly what the application does with data from Google
+  accounts, because that is what its Google OAuth consent asks for.
+</p>
+
+<h2>What data is accessed, and what is kept</h2>
+
+<table>
+  <tr>
+    <th>Scope</th><th>Read from Google</th><th>Stored on the device</th>
+  </tr>
+  <tr>
+    <td><code>gmail.readonly</code></td>
+    <td>Message identifiers, the sender's address and the received date of mail
+        from the last two days.</td>
+    <td>Only the sender's <em>domain</em> (for example <code>example.com</code>),
+        the date without a time, and the message id. <strong>Subjects and message
+        bodies are never requested and never stored</strong> — the application
+        asks Google for the <code>Date</code> header only.</td>
+  </tr>
+  <tr>
+    <td><code>calendar.readonly</code></td>
+    <td>Events in a window around today.</td>
+    <td>Event id, title, start time and last-modified stamp.</td>
+  </tr>
+</table>
+
+<p>
+  Both scopes are read-only. The application holds no write permission on Gmail
+  or Calendar and contains no code that writes to either. No message is ever
+  sent, deleted, modified or marked as read on the owner's behalf.
+</p>
+
+<h2>Where the data goes</h2>
+<ul>
+  <li>Stored as plain files on a private Raspberry Pi at the operator's home,
+      readable only by the operating-system account that runs the software.</li>
+  <li>Backed up to storage the operator controls: a NAS on the same home network
+      and the operator's own cloud storage.</li>
+  <li><strong>Never sold, never shared with third parties, never used for
+      advertising, never used to train any model.</strong></li>
+  <li>Not transferred to any server other than the operator's own. There is no
+      hosted backend and no analytics.</li>
+</ul>
+
+<h2>Why the data is used</h2>
+<p>
+  Solely to give the owner one overview of his own day: which messages arrived
+  and which appointments are coming up. Nothing derived from this data leaves
+  the owner's own devices.
+</p>
+
+<h2>Retention and deletion</h2>
+<p>
+  Data is kept for as long as the owner keeps it and is deleted by deleting the
+  files, which the owner can do at any time. Revoking access at
+  <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>
+  immediately stops all further reading; the application then fails visibly
+  rather than continuing silently.
+</p>
+
+<h2>Google API Services User Data Policy</h2>
+<p>
+  Archimedes OS's use of information received from Google APIs adheres to the
+  <a href="https://developers.google.com/terms/api-services-user-data-policy">Google
+  API Services User Data Policy</a>, including the Limited Use requirements.
+</p>
+
+<h2>Contact</h2>
+<p>
+  Menno Boot — <a href="mailto:menno7608@gmail.com">menno7608@gmail.com</a>
+</p>
+
+<footer>
+  <a href="/archimedes">About Archimedes OS</a> ·
+  <a href="/">tosurfornottosurf.nl</a>
+</footer>
+
+</body>
+</html>

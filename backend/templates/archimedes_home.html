@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archimedes OS</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto; padding: 2.5rem 1.25rem 5rem; max-width: 46rem;
+    font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; margin: 2.25rem 0 .5rem; }
+  .sub { color: #6b7280; margin: 0 0 2rem; }
+  ul { padding-left: 1.2rem; }
+  li { margin: .35rem 0; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+  footer { margin-top: 3rem; font-size: .9rem; color: #6b7280; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+
+<h1>Archimedes OS</h1>
+<p class="sub">A personal operating system for one person's notes, mail and calendar.</p>
+
+<p>
+  Archimedes OS is private software written and run by Menno Boot. It runs on a
+  Raspberry Pi at his home and has exactly one user: its owner. It is not offered
+  to anyone else, has no sign-up, and collects nothing from visitors of this page.
+</p>
+
+<h2>What it does</h2>
+<ul>
+  <li>Collects the owner's own notes, voice recordings and reading material into
+      one searchable store on his own hardware.</li>
+  <li>Shows which mail arrived and which appointments are coming up, so the day
+      fits on one screen.</li>
+  <li>Prepares proposals that the owner approves or rejects himself; the system
+      never acts on his behalf without that approval.</li>
+</ul>
+
+<h2>Which Google data it reads</h2>
+<ul>
+  <li><code>gmail.readonly</code> — the sender's domain and the date of recent
+      mail. Subjects and message bodies are never requested.</li>
+  <li><code>calendar.readonly</code> — the titles and times of upcoming events.</li>
+</ul>
+<p>
+  Both are read-only, and everything stays on the owner's own devices. The
+  details are in the <a href="/privacy">privacy policy</a>.
+</p>
+
+<h2>Contact</h2>
+<p>
+  Menno Boot — <a href="mailto:menno7608@gmail.com">menno7608@gmail.com</a>
+</p>
+
+<footer>
+  <a href="/privacy">Privacy policy</a> ·
+  <a href="/">tosurfornottosurf.nl</a>
+</footer>
+
+</body>
+</html>

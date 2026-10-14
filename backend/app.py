@@ -29,6 +29,23 @@ def go():
         pass
     return "Tunnel URL niet beschikbaar. Controleer URL.txt.", 503
 
+# Archimedes OS — twee statische pagina's op dit domein (11-09-2026).
+# Google's OAuth-consent voor een *restricted* scope (gmail.readonly) eist een
+# Application home page en een Privacy policy link op een geverifieerd domein;
+# zonder die twee blijft "Publish app" grijs en vervalt elk refresh-token na
+# zeven dagen. Ze staan hier omdat dit domein al van de eigenaar is en al draait.
+# Bewust vóór de catch-all hieronder gezet voor de leesbaarheid; Werkzeug kiest
+# sowieso de exacte regel boven `/<path:path>`.
+@app.route("/privacy")
+def archimedes_privacy():
+    return render_template("archimedes_privacy.html")
+
+
+@app.route("/archimedes")
+def archimedes_home():
+    return render_template("archimedes_home.html")
+
+
 @app.route("/dev/", defaults={"path": ""})
 @app.route("/dev/<path:path>")
 def serve_dev_app(path):
