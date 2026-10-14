@@ -26,7 +26,7 @@
 <body>
 
 <h1>Privacy Policy — Archimedes OS</h1>
-<p class="sub">Last updated: 11 September 2026</p>
+<p class="sub">Last updated: 14 October 2026</p>
 
 <p>
   Archimedes OS is a personal, single-user system operated by Menno Boot. It runs
@@ -59,12 +59,23 @@
     <td>Events in a window around today.</td>
     <td>Event id, title, start time and last-modified stamp.</td>
   </tr>
+  <tr>
+    <td><code>calendar.events</code></td>
+    <td>Nothing beyond the event it creates.</td>
+    <td>The id of each event it created, so the same event is never created twice.</td>
+  </tr>
 </table>
 
 <p>
-  Both scopes are read-only. The application holds no write permission on Gmail
-  or Calendar and contains no code that writes to either. No message is ever
-  sent, deleted, modified or marked as read on the owner's behalf.
+  Gmail access is read-only: no message is ever sent, deleted, modified or
+  marked as read on the owner's behalf. The application holds no write
+  permission on Gmail and contains no code that writes to it.
+</p>
+<p>
+  Calendar access is read-only with one exception: <code>calendar.events</code>
+  lets the application add an event to the owner's own calendar, and only after
+  the owner has explicitly approved that specific event in the application.
+  It never changes or deletes existing events and never invites other people.
 </p>
 
 <h2>Where the data goes</h2>
