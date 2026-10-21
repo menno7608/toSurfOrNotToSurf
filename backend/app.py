@@ -3,9 +3,10 @@
 from flask import Flask, jsonify, render_template, request, send_from_directory, redirect
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading, os, math
+import threading, os, math, json
 import requests as req
 import knmi_harmonie as harmonie
+import leren
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 import webwacht
@@ -286,6 +287,36 @@ def _fetch_weather(lat, lon, model):
         return r.json()
 
 
+def _vul_horizon_aan(primair: dict, aanvulling: dict) -> set:
+    """Vult de lege uren en dagen van `primair` (het geleerde best_match-model)
+    met `aanvulling` (Open-Meteo's eigen best_match), per tijdstempel.
+
+    Waarom: het geleerde model is vaak Météo-France of Harmonie, en die reiken
+    maar 2-4 dagen vooruit. Zonder aanvulling stopte "best match" bij zulke
+    spots midden in de week en stonden de laatste dagen leeg (20-10). Wat het
+    geleerde model wél heeft, blijft staan. Geeft de aangevulde uren terug,
+    zodat die niet onder de naam van het geleerde model geleerd worden."""
+    aangevuld = set()
+    for blok in ("hourly", "daily"):
+        p, a = primair.get(blok), aanvulling.get(blok)
+        if not p or not a:
+            continue
+        index = {t: i for i, t in enumerate(a.get("time", []))}
+        for i, t in enumerate(p.get("time", [])):
+            j = index.get(t)
+            if j is None:
+                continue
+            for sleutel, waarden in p.items():
+                if sleutel == "time" or i >= len(waarden) or waarden[i] is not None:
+                    continue
+                bron = a.get(sleutel)
+                if bron and j < len(bron) and bron[j] is not None:
+                    waarden[i] = bron[j]
+                    if blok == "hourly":
+                        aangevuld.add(t)
+    return aangevuld
+
+
 # ── MET Norway fallback (gratis, geen key, wereldwijd) ────────────────────────
 # MET Norway eist een User-Agent met een echt contactadres en beantwoordt alles
 # met een voorbeeldadres met 403. Er stond `contact@example.com`, waardoor deze
@@ -402,15 +433,24 @@ def _fetch_marine(lat, lon):
 
 
 # ── KNMI uurgegevens (gemeten, station 330 = Hoek van Holland) ─────────────────
-def _fetch_knmi(station_nr: int, hours: int = 14) -> list:
+def _fetch_knmi(station_nr: int, hours: int = 96) -> list:
     """
     Haalt gemeten uurlijkse winddata op van een KNMI-station.
     Station 330 = Hoek van Holland (dichtstbij Scheveningen aan de kust).
     Variabelen: FH = uurgemiddelde wind (0.1 m/s), FX = windstoot (0.1 m/s), DD = richting.
+
+    `hours=48` i.p.v. de oorspronkelijke 14: KNMI publiceert deze reeks met
+    vertraging (de laatste 10-15 uur komen leeg terug), dus bij 14 uur bleef er
+    vaak niets bruikbaars over. `_build_spot` gebruikt toch alleen wat vóór het
+    huidige uur ligt, dus de extra historie kost niets aan actualiteit.
     """
+    # KNMI past het uurbereik (HH in start/end) per dag toe, niet als één
+    # doorlopende periode: start ...19 en end ...19 gaf één uur per dag terug
+    # (gemeten 20-10). Dus hele dagen vragen, 01 t/m 24. Deze reeks loopt
+    # bovendien ±2 dagen achter; recente uren komen uit Buienradar (leren.metingen).
     now   = datetime.now(timezone.utc)
-    start = (now - timedelta(hours=hours)).strftime("%Y%m%d%H")
-    end   = now.strftime("%Y%m%d%H")
+    start = (now - timedelta(hours=hours)).strftime("%Y%m%d") + "01"
+    end   = now.strftime("%Y%m%d") + "24"
 
     r = req.get(
         "https://www.daggegevens.knmi.nl/klimatologie/uurgegevens",
@@ -422,20 +462,28 @@ def _fetch_knmi(station_nr: int, hours: int = 14) -> list:
 
     result = []
     for row in rows:
-        yyyymmdd = str(row["YYYYMMDD"])
-        hh = int(row["HH"])   # 1-24 (KNMI convention: HH=1 = uur 00:00-01:00)
-        dt = datetime(
-            int(yyyymmdd[:4]), int(yyyymmdd[4:6]), int(yyyymmdd[6:]),
-            (hh - 1) % 24, 0, tzinfo=timezone.utc
-        )
-        if hh == 24:
-            dt += timedelta(days=1)
+        # KNMI leverde hier ooit STN/YYYYMMDD/HH; de json-feed geeft nu
+        # station_code/date/hour (date = de dag om 00:00 UTC, hour = 1-24,
+        # zelfde "HH=1 is 00:00-01:00"-conventie als voorheen). Beide vormen
+        # opvangen zodat een volgende stille KNMI-wijziging niet opnieuw een
+        # kale except-tak oplevert.
+        if "hour" in row:
+            dag = datetime.fromisoformat(row["date"].replace("Z", "+00:00"))
+            hh = int(row["hour"])
+            fh, fx, dd = row.get("FH"), row.get("FX"), row.get("DD")
+        else:
+            yyyymmdd = str(row["YYYYMMDD"])
+            dag = datetime(int(yyyymmdd[:4]), int(yyyymmdd[4:6]), int(yyyymmdd[6:]), tzinfo=timezone.utc)
+            hh = int(row["HH"])
+            fh, fx, dd = row.get("FH"), row.get("FX"), row.get("DD")
 
-        fh = row.get("FH")
-        fx = row.get("FX")
-        dd = row.get("DD")
         if fh is None:
             continue
+        # Zelfde opbouw als voorheen: HH=1 = uur 00:00-01:00; bij HH=24 schuift
+        # KNMI's eigen datumlabel een dag door (ongewijzigd gedrag, niet hier onderzocht).
+        dt = dag.replace(hour=(hh - 1) % 24, minute=0, second=0, microsecond=0)
+        if hh == 24:
+            dt += timedelta(days=1)
 
         result.append({
             "dt":  dt,
@@ -541,6 +589,44 @@ def _live_ververs_een(naam: str, fetch) -> None:
         print(f"[WARN] live {naam}: {e}")
 
 
+def _leer_buienradar_metingen_vastleggen() -> None:
+    """Eén keer per minuut vanuit _live_verversen — niet per request, want
+    _apply_buienradar draait op elk verzoek en mag niet bij elke pageview naar
+    sqlite schrijven. Voor elke spot zonder weather2kite-voorrang de
+    dichtstbijzijnde Buienradar-meting vastleggen onder het huidige uur, als
+    grondwaarheid voor leren.beste_model.
+
+    Sinds 20-10 ook Weather2Kite voor de spots die dat als live-bron hebben
+    (24 spots, waaronder Scheveningen en IJmuiden): daarvan werd niets bewaard,
+    dus hun "Measured"-lijn was altijd modeldata. En onder het dichtstbijzijnde
+    hele uur in plaats van het lopende: een meting van 20:55 hoort bij 21:00,
+    het moment waarop het model zijn uurwaarde geeft."""
+    stations = _buienradar_stations()
+    w2k = _weather2kite_snapshot[1] if _weather2kite_snapshot else {}
+    uur = (datetime.now(timezone.utc) + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+    for meta in SPOTS_META:
+        if "weather2kite_spot" in meta:
+            m = w2k.get(meta["weather2kite_spot"])
+            if m and m.get("v") is not None:
+                leren.leg_meting_vast(meta["id"], uur, float(m["v"]), m.get("dir"), "weather2kite", m.get("g"))
+            continue
+        if not stations:
+            continue
+        br = _nearest_br_station(meta["lat"], meta["lon"], stations)
+        if not br:
+            continue
+        ws = br.get("windspeed")
+        if ws is None:
+            continue
+        wd = br.get("winddirectiondegrees")
+        wg = br.get("windgusts")
+        try:
+            leren.leg_meting_vast(meta["id"], uur, float(ws), float(wd) if wd is not None else None, "buienradar",
+                                  float(wg) if wg is not None else None)
+        except Exception as e:
+            print(f"[WARN] leren buienradar {meta['id']}: {e}")
+
+
 def _live_verversen() -> None:
     """Achtergrondthread: houdt beide live-snapshots vers.
 
@@ -551,6 +637,7 @@ def _live_verversen() -> None:
     import time
     while True:
         _live_ververs_een("buienradar", _fetch_buienradar)
+        _leer_buienradar_metingen_vastleggen()
         _live_ververs_een("weather2kite", _fetch_weather2kite_all)
         time.sleep(_LIVE_INTERVAL)
 
@@ -585,12 +672,35 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
         print(f"[INFO] {meta['id']}: model '{model}' dekt deze locatie niet")
         return None
 
+    # best_match: niet blind Open-Meteo's eigen blend volgen als we op deze
+    # plek al weten welk model het dichtst bij de meting zit. Alleen spots met
+    # een meetbron (KNMI vlakbij, of binnen Buienradar-bereik) krijgen hier
+    # ooit een winnaar; de rest valt vanzelf terug op gewoon gedrag.
+    model_om_op_te_halen = model
+    if model == "best_match":
+        kandidaten = [m for m in _WARM_MODELS[1:] if _model_dekt(meta["lat"], meta["lon"], m)]
+        geleerd = leren.beste_model(meta["id"], kandidaten)
+        if geleerd:
+            model_om_op_te_halen = geleerd
+
     # ── Weerdata ophalen: Open-Meteo → MET Norway fallback ───────────────────
     weather = None
     try:
-        weather = _fetch_weather(meta["lat"], meta["lon"], model)
+        weather = _fetch_weather(meta["lat"], meta["lon"], model_om_op_te_halen)
     except Exception as e:
         print(f"[WARN] Open-Meteo {meta['id']}: {e}")
+    van_open_meteo = weather is not None  # MET Norway hieronder is een ander model; niet als dit model vastleggen
+
+    aangevuld = set()
+    if weather is not None and model_om_op_te_halen != model:
+        speeds = weather.get("hourly", {}).get("wind_speed_10m", [])
+        if any(v is None for v in speeds):
+            try:
+                aanvulling = _fetch_weather(meta["lat"], meta["lon"], "best_match")
+                if aanvulling:
+                    aangevuld = _vul_horizon_aan(weather, aanvulling)
+            except Exception as e:
+                print(f"[WARN] aanvulling best_match {meta['id']}: {e}")
 
     if weather is None:
         try:
@@ -626,10 +736,21 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
     knmi_by_dt: dict = {}
     if "knmi_stn" in meta:
         try:
-            for row in _fetch_knmi(meta["knmi_stn"]):
+            knmi_rows = _fetch_knmi(meta["knmi_stn"])
+            for row in knmi_rows:
                 knmi_by_dt[row["dt"]] = row
+            # Dit is meteen de enige meetbron hier met écht uurhistorie (niet
+            # alleen "nu") — rechtstreeks bruikbaar voor leren.beste_model.
+            for row in knmi_rows:
+                leren.leg_meting_vast(meta["id"], row["dt"], row["v"], row["dir"], "knmi")
         except Exception as e:
             print(f"[WARN] KNMI {meta['id']}: {e}")
+
+    # Recente uren: eigen vastgelegde Buienradar-metingen van het dichtstbijzijnde
+    # station. KNMI's uurreeks loopt ±2 dagen achter, dus zonder dit was de hele
+    # "Measured"-lijn modeldata (20-10: 2959 van 2959 punten).
+    gemeten = {u: m for u, m in leren.metingen(meta["id"], now_h - timedelta(days=2)).items()
+               if m["bron"] in ("buienradar", "weather2kite") and m["v"] is not None}
 
     # ── Wind verwerken ───────────────────────────────────────────────────────
     wind_past, wind_live, wind_forecast = [], [], []
@@ -647,6 +768,7 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
         feels  = h.get("apparent_temperature", [])
         wcodes = h.get("weathercode", [])
         precip = h.get("precipitation", [])
+        voorspelling_snapshot = []  # (voor_uur UTC, wind_speed, wind_dir) — ongemoeid door de KNMI-vervanging hieronder
 
         for i, ts in enumerate(times):
             # Open-Meteo timezone:auto → lokale tijd; MET Norway → UTC
@@ -664,14 +786,22 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
 
             g = gusts[i]
             d = dirs[i]
+            if van_open_meteo and ts not in aangevuld:
+                voorspelling_snapshot.append((t_utc, speeds[i], dirs[i]))
 
             # Vervang door KNMI-meting als beschikbaar (alleen verleden)
             knmi = knmi_by_dt.get(t_utc)
+            br_m = gemeten.get(t_utc)
             if knmi and t_utc < now_h:
                 v   = knmi["v"]
                 g   = knmi["g"]
                 d   = knmi["dir"] if knmi["dir"] else d
                 src = "knmi"
+            elif br_m and t_utc < now_h:
+                v   = br_m["v"]
+                g   = br_m["g"]
+                d   = br_m["dir"] if br_m["dir"] is not None else d
+                src = br_m["bron"]
             else:
                 src = "model"
 
@@ -704,6 +834,9 @@ def _build_spot(meta: dict, model: str, harmonie_data: dict | None = None) -> di
                 if dirs[i] is not None:
                     live_dir = int(round(dirs[i]))
                     break
+
+        if van_open_meteo:
+            leren.leg_voorspelling_vast(meta["id"], model_om_op_te_halen, voorspelling_snapshot)
 
     # ── Harmonie overlay voor NL-spots ───────────────────────────────────────
     # Harmonie vervangt de forecast en vult past aan als Open-Meteo ontbreekt
@@ -1007,6 +1140,38 @@ def health():
     }), (200 if gezond else 503)
 
 
+_FEEDBACK_PATH = os.path.join(os.path.dirname(__file__), "feedback.jsonl")
+_feedback_lock = threading.Lock()
+_FEEDBACK_MAX_LEN = 1000
+_FEEDBACK_MAX_BYTES = 2_000_000
+
+
+@app.route("/api/feedback", methods=["POST"])
+def post_feedback():
+    """Vangt ideeën en foutmeldingen van gebruikers op in een lokaal logbestand.
+
+    Geen mail, geen externe dienst — gewoon een regel die hier op de Pi
+    blijft liggen totdat iemand 'm leest."""
+    data = request.get_json(silent=True) or {}
+    tekst = str(data.get("tekst", "")).strip()[:_FEEDBACK_MAX_LEN]
+    if not tekst:
+        return jsonify({"fout": "tekst ontbreekt"}), 400
+    try:
+        if os.path.getsize(_FEEDBACK_PATH) > _FEEDBACK_MAX_BYTES:
+            return jsonify({"fout": "inbox vol"}), 503
+    except OSError:
+        pass
+    regel = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tekst": tekst,
+        "pagina": str(data.get("pagina", ""))[:200],
+    }
+    with _feedback_lock:
+        with open(_FEEDBACK_PATH, "a") as f:
+            f.write(json.dumps(regel, ensure_ascii=False) + "\n")
+    return jsonify({"ok": True}), 201
+
+
 _warming_models: set = set()
 _warming_lock = threading.Lock()
 
@@ -1077,7 +1242,92 @@ def get_spots():
         print(f"[INFO] Model '{model}' {reden}, warming gestart…")
         _warm_model_bg(model)
 
-    return jsonify(results)
+    resp = jsonify(results)
+    # Korte edge-cache (audit F2, aanbeveling 2): bij een bezoekerspiek
+    # antwoordt Cloudflare zelf, in plaats van elke keer deze worker te raken.
+    resp.headers["Cache-Control"] = "public, max-age=60"
+    return resp
+
+
+# ---- drukkaart (kaart-achtergrond bij de grafiek) ───────────────────────────
+# Overgenomen uit de watersport-trainer-app (05-10-2026), maar niet 1-op-1:
+# daar is dit een blokkerende call ín het verzoek. Na de F1-audit hier (29-09)
+# mag een trage externe bron /api/spots nooit meer laten hangen; dezelfde regel
+# geldt voor deze route. Daarom alleen uit cache lezen en op de achtergrond
+# verversen, met hetzelfde korte timeout als Buienradar/Weather2Kite.
+_druk_cache: dict = {}   # (lat, lon) -> (data, ts)
+_druk_bezig: set = set()
+
+
+def _druk_rondaf(x):
+    """Op een halve graad: spots dichtbij delen hetzelfde rasterpunt."""
+    return round(x * 2) / 2
+
+
+def _druk_ophalen(lat, lon):
+    straal_km = 450
+    dlat = straal_km / 111.32
+    dlon = dlat / math.cos(math.radians(lat)) if abs(lat) < 89 else dlat
+    lats = [round(lat - dlat + 2 * dlat * i / 8, 3) for i in range(9)]
+    lons = [round(lon - dlon + 2 * dlon * j / 8, 3) for j in range(9)]
+    punten = [(a, b) for a in lats for b in lons]
+    try:
+        r = req.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": ",".join(str(a) for a, _ in punten),
+                "longitude": ",".join(str(b) for _, b in punten),
+                "hourly": "pressure_msl",
+                "forecast_days": 2,
+                "timezone": "GMT",
+            },
+            timeout=_LIVE_TIMEOUT,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if isinstance(data, dict):
+            data = [data]
+        nu = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00")
+        tijden = data[0]["hourly"]["time"]
+        i = tijden.index(nu) if nu in tijden else 0
+        waarden = [d["hourly"]["pressure_msl"][i] for d in data]
+        if len(waarden) != len(punten) or any(v is None for v in waarden):
+            return
+        hpa = [waarden[ri * len(lons):(ri + 1) * len(lons)] for ri in range(len(lats))]
+        _druk_cache[(lat, lon)] = ({"lats": lats, "lons": lons, "hpa": hpa}, datetime.now(timezone.utc))
+    except Exception:
+        pass  # stil falen: de kaart blijft dan zonder isobaren, net als bij een hangende Buienradar.
+
+
+def _druk_bg(lat, lon):
+    sleutel = (lat, lon)
+    if sleutel in _druk_bezig:
+        return
+    _druk_bezig.add(sleutel)
+
+    def _run():
+        try:
+            _druk_ophalen(lat, lon)
+        finally:
+            _druk_bezig.discard(sleutel)
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+@app.route("/api/drukkaart")
+def drukkaart():
+    """Luchtdruk op zeeniveau rond een spot, voor de kaart-achtergrond bij de
+    grafiek. Leest alleen de cache; ververst op de achtergrond zodra die
+    ontbreekt of ouder dan een uur is. Nooit blokkerend."""
+    try:
+        lat, lon = _druk_rondaf(float(request.args["lat"])), _druk_rondaf(float(request.args["lon"]))
+    except (KeyError, ValueError):
+        return jsonify({"error": "lat en lon zijn verplicht en moeten getallen zijn"}), 400
+    sleutel = (lat, lon)
+    cached = _druk_cache.get(sleutel)
+    if not cached or datetime.now(timezone.utc) - cached[1] > timedelta(hours=1):
+        _druk_bg(lat, lon)
+    return jsonify(cached[0] if cached else None)
 
 
 # Alle modellen die de frontend aanbiedt — moet synchroon lopen met SpotSidebar.jsx
@@ -1104,9 +1354,29 @@ def _warm_cache():
     try:
         h_data = _get_harmonie_data() if KNMI_API_KEY else {}
 
-        # Warm alleen best_match bij opstarten; andere modellen worden on-demand geladen.
-        # Dit voorkomt een burst van ~600 HTTP-requests die de WiFi destabiliseert.
+        # best_match eerst en alleen, zodat de standaard view meteen werkt.
         for model in _WARM_MODELS[:1]:
+            with ThreadPoolExecutor(max_workers=4) as ex:
+                futures = {ex.submit(_get_spot, meta, model, h_data): meta["id"]
+                           for meta in SPOTS_META}
+                done = 0
+                for future in as_completed(futures):
+                    done += 1
+                    try:
+                        future.result()
+                    except Exception as e:
+                        print(f"[WARN] warm {model}/{futures[future]}: {e}")
+            print(f"[INFO] Cache warming {model}: {done}/{len(SPOTS_META)} spots klaar")
+            _save_disk_cache()
+
+        # De overige modellen ná best_match, één voor één met een pauze ertussen:
+        # dit stond er al als docstring-belofte maar deed niets (de lus liep alleen
+        # over _WARM_MODELS[:1]). Zonder dit is elk model na een herstart ~45-60s
+        # leeg zodra iemand hem voor het eerst kiest. Sequentieel + pauze i.p.v.
+        # gelijktijdig: een eerdere burst van alle modellen tegelijk destabiliseerde
+        # de WiFi (zie project_pi_netwerk).
+        for model in _WARM_MODELS[1:]:
+            time.sleep(15)
             with ThreadPoolExecutor(max_workers=4) as ex:
                 futures = {ex.submit(_get_spot, meta, model, h_data): meta["id"]
                            for meta in SPOTS_META}

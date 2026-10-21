@@ -1,4 +1,6 @@
 import { useTheme } from "../theme.js";
+import { t as vertaal, huidigeTaal, zetTaal } from "../taal.js";
+import { naarNu } from "../tijdvenster.js";
 
 const TABS = [
   { id: "wind",    label: "WIND" },
@@ -8,7 +10,7 @@ const TABS = [
   { id: "rain",    label: "RAIN" },
 ];
 
-export default function ChartTabs({ spot, active, onChange }) {
+export default function ChartTabs({ spot, active, onChange, taalKnop = true }) {
   const C = useTheme();
 
   const tabs = TABS.filter((t) => {
@@ -22,7 +24,6 @@ export default function ChartTabs({ spot, active, onChange }) {
     <div style={{
       display: "flex", gap: 4, padding: "4px 8px",
       borderBottom: `1px solid ${C.border}44`,
-      backgroundColor: C.cream,
       flexShrink: 0,
     }}>
       {tabs.map((t) => {
@@ -41,10 +42,32 @@ export default function ChartTabs({ spot, active, onChange }) {
               transition: "background 0.12s, color 0.12s",
             }}
           >
-            {t.label}
+            {vertaal(t.label)}
           </button>
         );
       })}
+      {/* Rechts: terug naar nu (alle grafieken), en de taal. */}
+      <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+        <button onClick={naarNu} title={vertaal("Back to now")} style={knop(C, true)}>
+          {vertaal("NOW")}
+        </button>
+        {taalKnop && (
+          <button onClick={() => zetTaal(huidigeTaal() === "nl" ? "en" : "nl")} title="Nederlands / English" style={knop(C, false)}>
+            {huidigeTaal() === "nl" ? "NL · en" : "EN · nl"}
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+function knop(C, nadruk) {
+  return {
+    fontSize: 9, fontWeight: 900, letterSpacing: "0.1em",
+    padding: "3px 10px", borderRadius: 3,
+    border: `1.5px solid ${nadruk ? C.orange : C.border}`,
+    background: "transparent",
+    color: nadruk ? C.orange : C.border,
+    cursor: "pointer", outline: "none",
+  };
 }

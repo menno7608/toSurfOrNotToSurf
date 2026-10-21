@@ -9,7 +9,7 @@
   "display": "standalone",
   "prefer_related_applications": false,
   "orientation": "portrait-primary",
-  "background_color": "#f0ebe0",
+  "background_color": "#1a2635",
   "theme_color": "#1a2635",
   "categories": ["weather", "sports", "lifestyle"],
   "icons": [

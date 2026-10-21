@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { convertWind } from "./SpotInfo.jsx";
 import { useTheme } from "../theme.js";
+import { fmtUpdatedAt } from "../time.js";
+import { t as vertaal, locale } from "../taal.js";
+import Instellingen from "./Instellingen.jsx";
 
 export const SIDEBAR_W = 320;
 
@@ -171,7 +174,7 @@ function WindArrow({ deg = 0, size = 28 }) {
   );
 }
 
-export default function Header({ spot, spots, selectedId, onSelectId, unit, onUnitChange, loading = false, favorites = [], onToggleFavorite, webcamOpen = false, onWebcamToggle, rwsMapOpen = false, onRwsMapToggle, autoRotate = false, onAutoRotateToggle, canAutoRotate = false, isDark = false, onThemeToggle, sunrise, sunset, alarmMatch = false, onAlarmToggle }) {
+export default function Header({ spot, spots, selectedId, onSelectId, unit, onUnitChange, loading = false, favorites = [], onToggleFavorite, webcamOpen = false, onWebcamToggle, rwsMapOpen = false, onRwsMapToggle, autoRotate = false, onAutoRotateToggle, canAutoRotate = false, isDark = false, onThemeToggle, sunrise, sunset, alarmMatch = false, onAlarmToggle, homeSpotId = "", onHomeSpot }) {
   const C = useTheme();
   const [time, setTime] = useState(new Date());
   const [tempMode, setTempMode] = useState("air"); // "air" | "water"
@@ -183,6 +186,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
 
   const hh = time.getHours().toString().padStart(2, "0");
   const mm = time.getMinutes().toString().padStart(2, "0");
+  const dateStr = time.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" });
 
   const windSpeed = spot?.live?.windSpeed;
   const windGust  = spot?.live?.windGust;
@@ -200,7 +204,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
   const fmtT = (v) => v != null ? `${v.toFixed(1)}` : "—";
 
   return (
-    <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, backgroundColor: C.cream, flexShrink: 0, position: "relative", zIndex: 100 }}>
+    <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, flexShrink: 0, position: "relative", zIndex: 100 }}>
 
       {/* ── TIME (zelfde breedte als sidebar) ── */}
       <div style={{
@@ -211,13 +215,19 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
         overflow: "hidden",
       }}>
         <span style={{ fontSize: "clamp(8px, 1vw, 11px)", fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>
-          TIME
+          {vertaal("TIME")}
         </span>
         <span style={{
           fontSize: "clamp(32px, 6vw, 80px)", fontWeight: 900, fontVariantNumeric: "tabular-nums",
           lineHeight: 1, color: C.dark, letterSpacing: "0.04em",
         }}>
           {hh}:{mm}
+        </span>
+        <span style={{
+          fontSize: "clamp(10px, 1.2vw, 15px)", fontWeight: 700, color: C.border,
+          letterSpacing: "0.04em", textTransform: "capitalize",
+        }}>
+          {dateStr}
         </span>
       </div>
 
@@ -230,7 +240,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
         overflow: "hidden",
       }}>
         <span style={{ fontSize: "clamp(8px, 1vw, 11px)", fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>
-          TEMPERATURE
+          {vertaal("TEMPERATURE")}
         </span>
 
         {/* Hoofdwaarde */}
@@ -247,7 +257,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
         {/* Gevoelstemperatuur (alleen bij lucht) */}
         {tempMode === "air" && (
           <div style={{ fontSize: "clamp(10px, 1.1vw, 13px)", color: C.border }}>
-            Feels like: <strong style={{ color: C.dark }}>{fmtT(feelsLike)}</strong>
+            {vertaal("Feels like:")} <strong style={{ color: C.dark }}>{fmtT(feelsLike)}</strong>
           </div>
         )}
 
@@ -261,7 +271,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
               color: tempMode === m ? C.cream : C.border,
               cursor: "pointer", fontWeight: tempMode === m ? 700 : 400,
             }}>
-              {m === "air" ? "Air" : "Water"}
+              {vertaal(m === "air" ? "Air" : "Water")}
             </button>
           ))}
         </div>
@@ -339,7 +349,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
         overflow: "visible", position: "relative",
       }}>
         <span style={{ fontSize: "clamp(8px, 1vw, 10px)", fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>
-          SPOT NAME
+          {vertaal("SPOT NAME")}
         </span>
         {spots.length > 1 ? (
           <SpotDropdown
@@ -393,17 +403,17 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
             cursor: "pointer", outline: "none",
           }}
         >
-          {rwsMapOpen ? "✕ MAP" : "MAP"}
+          {vertaal(rwsMapOpen ? "✕ MAP" : "MAP")}
         </button>
         {liveAt && (
           <span style={{ fontSize: "clamp(8px, 0.8vw, 10px)", color: C.border, opacity: 0.75 }}>
-            {liveAt.slice(11, 16)}
+            {fmtUpdatedAt(liveAt, spot?.utcOffset)}
           </span>
         )}
         <button
           onClick={() => onAutoRotateToggle?.()}
           disabled={!canAutoRotate}
-          title={canAutoRotate ? "Auto-rotate favourites (30s)" : "Add ≥2 favourites"}
+          title={vertaal(canAutoRotate ? "Auto-rotate favourites (30s)" : "Add ≥2 favourites")}
           style={{
             border: `2px solid ${autoRotate ? C.dark : C.border}`,
             borderRadius: 4,
@@ -438,16 +448,18 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
             cursor: "pointer", outline: "none",
           }}
         >
-          {isDark ? "LIGHT" : "DARK"}
+          {vertaal(isDark ? "LIGHT" : "DARK")}
           <span style={{ fontSize: "0.75em", opacity: 0.55, marginLeft: 2 }}>·AUTO</span>
         </button>
+        <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
         <button
           onClick={() => onAlarmToggle?.()}
           title="Alarmregels instellen"
           style={{
+            flex: 1, whiteSpace: "nowrap",
             border: `2px solid ${alarmMatch ? "#60b8e8" : C.border}`,
             borderRadius: 4,
-            padding: "4px clamp(6px, 1.2vw, 14px)",
+            padding: "4px 4px",
             fontSize: "clamp(9px, 0.9vw, 11px)", fontWeight: 900,
             letterSpacing: "0.12em",
             color: alarmMatch ? "#60b8e8" : C.border,
@@ -459,6 +471,11 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
         >
           ≋ ALARM
         </button>
+        <Instellingen
+          spots={spots} homeSpotId={homeSpotId} onHomeSpot={onHomeSpot} onSelectSpot={onSelectId}
+          color={C.border} knopStijl={{ border: `2px solid ${C.border}`, borderRadius: 4, padding: "4px 8px" }}
+        />
+        </div>
       </div>
     </div>
   );

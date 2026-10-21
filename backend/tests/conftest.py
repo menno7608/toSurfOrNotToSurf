@@ -18,6 +18,7 @@ import requests
 BACKEND = Path(__file__).resolve().parents[1]
 TMP = Path(tempfile.mkdtemp(prefix="weertest-"))
 os.environ["WEERCACHE_PAD"] = str(TMP / "cache.json")
+os.environ["LEREN_DB_PAD"] = str(TMP / "leren.db")
 os.environ["TOEGANG_DIR"] = str(TMP / "toegang")
 os.environ.pop("KNMI_API_KEY", None)
 if (BACKEND / "cache.json").exists():

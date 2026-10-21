@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "./components/Header.jsx";
 import SpotSidebar from "./components/SpotSidebar.jsx";
+import KaartAchtergrond from "./components/KaartAchtergrond.jsx";
 import WindChart from "./components/WindChart.jsx";
 import WeekForecast from "./components/WeekForecast.jsx";
 import MobileLayout from "./components/MobileLayout.jsx";
@@ -13,6 +14,7 @@ import RainChart from "./components/RainChart.jsx";
 import ChartTabs from "./components/ChartTabs.jsx";
 import AlarmPanel from "./components/AlarmPanel.jsx";
 import { ThemeCtx, LIGHT, DARK } from "./theme.js";
+import { useTaal } from "./taal.js";
 import { useAlarmRules } from "./hooks/useAlarmRules.js";
 import { useAlarmMatch } from "./hooks/useAlarmMatch.js";
 import { useSunTheme, getSunriseSunset } from "./hooks/useSunTheme.js";
@@ -33,13 +35,49 @@ function useIsMobile(forceMobile = false) {
   return mobile;
 }
 
+/* Zolang de API niets bruikbaars geeft, blijft het scherm de vorige data tonen.
+   Dat is beter dan leeg springen, maar niet als het uren duurt: dan staat er een
+   dagenstrip van eergisteren onder een klok die gewoon doorloopt. Deze balk
+   zegt wat er aan de hand is, en één tik herlaadt. */
+function StaleBar({ text, color }) {
+  return (
+    <div
+      onClick={() => window.location.reload()}
+      style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
+        background: color, color: "#fff", textAlign: "center",
+        fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
+        padding: "3px 8px", cursor: "pointer",
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
 export default function App({ forceMobile = false }) {
   const [spots, setSpots] = useState([]);
+  // Thuisspot: de app opent altijd op deze spot, daarna geldt de laatst bekeken.
+  const [homeSpotId, setHomeSpotId] = useState(() => {
+    try { return localStorage.getItem("homeSpotId") || ""; }
+    catch { return ""; }
+  });
+  const kiesThuisspot = (id) => {
+    setHomeSpotId(id || "");
+    try {
+      if (id) localStorage.setItem("homeSpotId", id);
+      else localStorage.removeItem("homeSpotId");
+    } catch {}
+  };
   const [selectedId, setSelectedId] = useState(() => {
-    try { return localStorage.getItem("selectedId") || ""; }
+    try { return localStorage.getItem("homeSpotId") || localStorage.getItem("selectedId") || ""; }
     catch { return ""; }
   });
   const [error, setError] = useState("");
+  // Taalwissel: de hele app opnieuw tekenen, alle teksten lopen via taal.js.
+  useTaal();
+  const [onderHoogte, setOnderHoogte] = useState(null);
+  const [kaartMoment, setKaartMoment] = useState(null);
   const [unit, setUnit] = useState("kts");
   const [waveUnit, setWaveUnit] = useState(() => {
     try { return localStorage.getItem("waveUnit") || "m"; }
@@ -70,6 +108,21 @@ export default function App({ forceMobile = false }) {
 
   useEffect(() => {
     document.body.classList.toggle("dark", isDark);
+    // Ook <html> en de browserkleur: op Android kleurt de navigatiebalk onderin
+    // mee met wat daar ligt, en dat was crème — een witte balk onder een
+    // donkere app (20-10).
+    const kleur = isDark ? "#1a2635" : "#f0ebe0";
+    document.documentElement.style.backgroundColor = kleur;
+    // Body doorzichtig: met een eigen achtergrond tekent body óver de kaart
+    // (KaartAchtergrond, z-index -10) heen, zodra <html> ook een kleur heeft.
+    document.body.style.backgroundColor = "transparent";
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.content = kleur;
   }, [isDark]);
 
   const [favorites, setFavorites] = useState(() => {
@@ -154,12 +207,20 @@ export default function App({ forceMobile = false }) {
     return [...favs, ...rest];
   }, [spots, favorites]);
 
+  /* Een leeg antwoord betekent dat de backend dit model nog aan het opwarmen is.
+     De retry-lus hieronder bleef daar stil in hangen: oude data op het scherm,
+     elke twee seconden opnieuw proberen, en niets dat het verried. */
+  const emptyRounds = useRef(0);
+  const [warming, setWarming] = useState(false);
+
   useEffect(() => {
     let lastLoadedAt = 0;
     let timer;
     let retryTimer;
     let isCurrent = true;
     const spreiding = Math.floor(Math.random() * 180_000);
+
+    emptyRounds.current = 0;
 
     const load = () => {
       lastLoadedAt = Date.now();
@@ -173,10 +234,16 @@ export default function App({ forceMobile = false }) {
           if (!isCurrent) return;
           if (!Array.isArray(data)) throw new Error("API returned no array");
           if (data.length === 0) {
+            emptyRounds.current += 1;
+            if (emptyRounds.current >= 3) setWarming(true);
             clearTimeout(retryTimer);
-            retryTimer = setTimeout(load, 2_000);
+            // Oplopend wachten (2, 4, 8 … 60 s): tijdens het opwarmen van een model
+            // vroeg elk open tabblad anders elke 2 s opnieuw de volle lijst op.
+            retryTimer = setTimeout(load, Math.min(60_000, 2_000 * 2 ** (emptyRounds.current - 1)));
             return;
           }
+          emptyRounds.current = 0;
+          setWarming(false);
           setSpots(data);
           setSelectedId((prev) => {
             if (prev && data.some((s) => s.id === prev)) return prev;
@@ -236,6 +303,22 @@ export default function App({ forceMobile = false }) {
 
   const theme = isDark ? DARK : LIGHT;
 
+  // Elke minuut opnieuw kijken hoe oud de getoonde data inmiddels is.
+  const [ageTick, setAgeTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setAgeTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const staleText = useMemo(() => {
+    if (warming) return "MODEL WORDT GELADEN…";
+    if (!spot?.updatedAt) return null;
+    const ageMin = (Date.now() - new Date(spot.updatedAt).getTime()) / 60_000;
+    if (ageMin < 60) return null;
+    const uren = Math.floor(ageMin / 60);
+    return `DATA ${uren} UUR OUD — TIK OM TE HERLADEN`;
+  }, [warming, spot?.updatedAt, ageTick]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sunrise/sunset for today at current spot (used for button tooltip)
   const { sunrise: todaySunrise, sunset: todaySunset } = useMemo(() => {
     const lat = spot?.location?.lat ?? 52.3;
@@ -254,6 +337,7 @@ export default function App({ forceMobile = false }) {
   if (isMobile) {
     return (
       <ThemeCtx.Provider value={theme}>
+        {staleText && <StaleBar text={staleText} color={warming ? "#c8892a" : "#c0392b"} />}
         <MobileLayout
           spots={sortedSpots}
           spot={spot}
@@ -274,6 +358,8 @@ export default function App({ forceMobile = false }) {
           onWaveUnitToggle={toggleWaveUnit}
           alarmMatch={hasMatch}
           onAlarmToggle={() => setAlarmOpen((v) => !v)}
+          homeSpotId={homeSpotId}
+          onHomeSpot={kiesThuisspot}
         />
         {alarmOpen && (
           <AlarmPanel
@@ -291,7 +377,9 @@ export default function App({ forceMobile = false }) {
 
   return (
     <ThemeCtx.Provider value={theme}>
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: theme.cream }}>
+      {staleText && <StaleBar text={staleText} color={warming ? "#c8892a" : "#c0392b"} />}
+      <KaartAchtergrond spot={spot} spots={sortedSpots} homeSpotId={homeSpotId} unit={unit} moment={kaartMoment} />
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Header
           spot={spot}
           spots={sortedSpots}
@@ -315,9 +403,11 @@ export default function App({ forceMobile = false }) {
           sunset={todaySunset}
           alarmMatch={hasMatch}
           onAlarmToggle={() => setAlarmOpen((v) => !v)}
+          homeSpotId={homeSpotId}
+          onHomeSpot={kiesThuisspot}
         />
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-          <SpotSidebar spot={spot} unit={unit} waveUnit={waveUnit} onWaveUnitToggle={toggleWaveUnit} weatherModel={weatherModel} onModelChange={setWeatherModel} spotModels={spotModels} onSaveSpotModel={saveSpotModel} />
+          <SpotSidebar onOnderHoogte={setOnderHoogte} spot={spot} unit={unit} waveUnit={waveUnit} onWaveUnitToggle={toggleWaveUnit} weatherModel={weatherModel} onModelChange={setWeatherModel} spotModels={spotModels} onSaveSpotModel={saveSpotModel} />
           <div style={{ flex: 1, position: "relative", minWidth: 0, display: "flex", flexDirection: "column" }}>
             <ChartTabs spot={spot} active={activeChart} onChange={setActiveChart} />
             {activeChart === "wind" && (
@@ -331,13 +421,14 @@ export default function App({ forceMobile = false }) {
                 shoreAngle={spot?.shore_angle}
                 utcOffset={spot?.utcOffset}
                 scrollToDate={scrollTargetDate}
+                onSelect={setKaartMoment}
               />
             )}
             {activeChart === "current" && <CurrentChart spot={spot} />}
             {activeChart === "waves"   && <WaveChart spot={spot} waveUnit={waveUnit} />}
             {activeChart === "tide"    && <TideChart spot={spot} />}
             {activeChart === "rain"    && <RainChart spot={spot} />}
-            <WeekForecast windDaily={spot?.windDaily} unit={unit} onDayClick={setScrollTargetDate} />
+            <WeekForecast windDaily={spot?.windDaily} unit={unit} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} hoogte={onderHoogte} />
             {webcamOpen && (
               <div style={{
                 position: "absolute", inset: 0,

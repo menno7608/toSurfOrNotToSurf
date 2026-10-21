@@ -70,3 +70,10 @@ body.dark input {
     text-size-adjust: 100%;
   }
 }
+
+/* Geen focusrand om een grafiek na aanklikken of slepen (20-10). */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus {
+  outline: none;
+}

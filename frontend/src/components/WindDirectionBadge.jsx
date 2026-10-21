@@ -1,4 +1,5 @@
 import { useTheme } from "../theme.js";
+import { t as vertaal } from "../taal.js";
 
 const COMPASS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
 
@@ -45,7 +46,7 @@ export default function WindDirectionBadge({ windDir, shoreAngle }) {
           borderRadius:  4,
           padding:       "1px 6px",
         }}>
-          {shore.label}
+          {vertaal(shore.label)}
         </span>
       )}
     </div>

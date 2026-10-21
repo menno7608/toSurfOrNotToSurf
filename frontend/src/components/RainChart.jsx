@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import MiniChart from "./MiniChart.jsx";
 import { useTheme } from "../theme.js";
+import { t as vertaal } from "../taal.js";
 
 const RAIN_BANDS = [
   { y1: 0,    y2: 0.1,  fill: "#2980b9", fillOpacity: 0.04 },
@@ -65,10 +66,10 @@ export default function RainChart({ spot }) {
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: C.cream, overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", borderBottom: `1px solid ${C.border}44`, flexShrink: 0 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>NEERSLAG</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>{vertaal("RAIN")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 11, color: C.border }}>
             vandaag: <strong style={{ color: C.dark }}>{totalToday.toFixed(1)} mm</strong>

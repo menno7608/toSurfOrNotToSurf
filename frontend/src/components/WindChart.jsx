@@ -5,12 +5,18 @@ import {
 } from "recharts";
 import { convertWind } from "./SpotInfo.jsx";
 import { useTheme } from "../theme.js";
+import { fmtUpdatedAt } from "../time.js";
+import { useVenster, zetVenster, msVan, useNuTeller } from "../tijdvenster.js";
+import { t as vertaal, locale } from "../taal.js";
 import WindDirectionBadge from "./WindDirectionBadge.jsx";
 
 const FORECAST = "#60b8e8";
 const ARROW    = "#3d7fa8";
 
 const PX_PER_HOUR = 72;
+// Telefoon: meer uren in beeld, anders tonen de golfgrafieken eronder (drie-
+// uurlijkse data) in hetzelfde venster maar twee punten.
+const PX_PER_HOUR_COMPACT = 40;
 
 // Kitesurfen referentiewaarden in kts
 const REFS = [
@@ -43,14 +49,16 @@ function isValley(data, key, i) {
 }
 
 // ── SVG elementen ──────────────────────────────────────────────────────────────
-function ArrowDot({ cx, cy, windDir = 90 }) {
+function ArrowDot({ cx, cy, windDir = 90, compact = false }) {
   if (cx == null || cy == null) return null;
-  const s = 9;
+  // Wandscherm: groot genoeg om vanaf de bank de richting te lezen.
+  const s = compact ? 9 : 13;
+  const sw = compact ? 2 : 2.75;
   return (
     <g transform={`translate(${cx},${cy}) rotate(${windDir + 90})`}>
-      <line x1={-s} y1="0" x2={s - 2} y2="0" stroke={ARROW} strokeWidth="2" strokeLinecap="round" />
+      <line x1={-s} y1="0" x2={s - 2} y2="0" stroke={ARROW} strokeWidth={sw} strokeLinecap="round" />
       <path d={`M${s-5},-${(s*.55).toFixed(1)} L${s+1},0 L${s-5},${(s*.55).toFixed(1)}`}
-        stroke={ARROW} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        stroke={ARROW} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </g>
   );
 }
@@ -62,9 +70,9 @@ function OrangeDot({ cx, cy, orange, cream }) {
 
 // onlyMeasured: toon pijlen alleen voor origineel gemeten punten (past/live), niet voor verstreken forecast
 function makeDot({ data, dataKey, liveIdx, windDir, unit, compact, dark, orange, cream, onlyMeasured = false }) {
-  const fs  = compact ? 10 : 13;
-  const yUp = compact ? -14 : -17;
-  const yDn = compact ?  18 :  22;
+  const fs  = compact ? 10 : 16;
+  const yUp = compact ? -14 : -20;
+  const yDn = compact ?  18 :  27;
   return function Dot({ cx, cy, index }) {
     if (cx == null || cy == null) return null;
     if (index === liveIdx) return <OrangeDot cx={cx} cy={cy} orange={orange} cream={cream} />;
@@ -77,7 +85,7 @@ function makeDot({ data, dataKey, liveIdx, windDir, unit, compact, dark, orange,
 
     return (
       <g>
-        <ArrowDot cx={cx} cy={cy} windDir={data[index]?._dir ?? windDir} />
+        <ArrowDot cx={cx} cy={cy} windDir={data[index]?._dir ?? windDir} compact={compact} />
         {(pk || vl) && val != null && (
           <text
             x={cx} y={pk ? cy + yUp : cy + yDn}
@@ -92,9 +100,9 @@ function makeDot({ data, dataKey, liveIdx, windDir, unit, compact, dark, orange,
 }
 
 function makeGustDot({ data, liveIdx, unit, compact, gust }) {
-  const fs  = compact ? 10 : 13;
-  const yUp = compact ? -6 : -8;
-  const yDn = compact ? 14 : 17;
+  const fs  = compact ? 10 : 16;
+  const yUp = compact ? -6 : -9;
+  const yDn = compact ? 14 : 20;
   return function Dot({ cx, cy, index }) {
     if (cx == null || cy == null) return null;
     if (index === liveIdx) return null;
@@ -116,7 +124,7 @@ function makeGustDot({ data, liveIdx, unit, compact, gust }) {
 }
 
 // ── Hoofdcomponent ─────────────────────────────────────────────────────────────
-export default function WindChart({ past, live, forecast, unit = "kts", windDir = 90, compact = false, liveAt = null, shoreAngle = null, utcOffset = 0, scrollToDate = null }) {
+export default function WindChart({ past, live, forecast, unit = "kts", windDir = 90, compact = false, liveAt = null, shoreAngle = null, utcOffset = 0, scrollToDate = null, onSelect = null }) {
   const theme = useTheme();
   const LINE   = theme.border;
   const CREAM  = theme.cream;
@@ -125,6 +133,12 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
   const GUST   = theme.gust;
 
   const scrollRef = useRef(null);
+  // Zichtbaar deel van de scrollgrafiek: de datum onder de grafiek blijft daarbinnen.
+  const [zicht, setZicht] = useState({ l: 0, r: 0 });
+  const meetZicht = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) setZicht({ l: el.scrollLeft, r: el.scrollLeft + el.clientWidth });
+  }, []);
   const windowWheelRef = useRef(null);
 
   // Ruim window-listener op bij unmount (voor het geval muis nog boven grafiek zweeft)
@@ -204,7 +218,7 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
   }, [allRows, now, liveIdx, utcOffset]);
 
   const totalPts = allRows.length;
-  const chartW   = Math.max(800, totalPts * PX_PER_HOUR);
+  const chartW   = Math.max(compact ? 400 : 800, totalPts * (compact ? PX_PER_HOUR_COMPACT : PX_PER_HOUR));
 
   useEffect(() => {
     if (scrollToDate) return;
@@ -217,6 +231,7 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
     const el = scrollRef.current;
     const doScroll = () => {
       if (el.clientWidth > 0) el.scrollLeft = nowX - el.clientWidth / 2;
+      meetZicht();
     };
 
     // Scroll zodra de container zijn breedte heeft (betrouwbaar op alle apparaten)
@@ -265,7 +280,8 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
     const plotW = chartW - LEFT_OFFSET - RIGHT_OFFSET;
     const x = LEFT_OFFSET + (noonIdx / Math.max(totalPts - 1, 1)) * plotW;
     el.scrollLeft = x - el.clientWidth / 2;
-  }, [noonIdx, chartW, totalPts]);
+    meetZicht();
+  }, [noonIdx, chartW, totalPts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detecteer dag-overgangen: t=00:00 of eerste punt van een nieuwe datum
   const dayChanges = useMemo(() => {
@@ -291,6 +307,43 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
 
   const LEFT_OFFSET = 4;
   const RIGHT_OFFSET = 24;
+
+  // ── Gedeeld tijdvenster ─────────────────────────────────────────────────
+  // De x-as loopt per datapunt, niet per tijd (het nu-punt valt tussen twee
+  // hele uren), dus omrekenen via de tijden van de punten zelf.
+  const rijMs = useMemo(() => allRows.map((r) => msVan(r.date, r.t)), [allRows]);
+  const plotW = chartW - LEFT_OFFSET - RIGHT_OFFSET;
+  const pxNaarMs = useCallback((x) => {
+    if (rijMs.length < 2) return NaN;
+    const idx = Math.max(0, Math.min(rijMs.length - 1, ((x - LEFT_OFFSET) / plotW) * (rijMs.length - 1)));
+    const i = Math.min(Math.floor(idx), rijMs.length - 2);
+    return rijMs[i] + (idx - i) * (rijMs[i + 1] - rijMs[i]);
+  }, [rijMs, plotW]);
+  const msNaarPx = useCallback((ms) => {
+    if (rijMs.length < 2) return 0;
+    let i = 0;
+    while (i < rijMs.length - 2 && rijMs[i + 1] <= ms) i++;
+    const frac = Math.max(0, Math.min(1, (ms - rijMs[i]) / (rijMs[i + 1] - rijMs[i])));
+    return LEFT_OFFSET + ((i + frac) / (rijMs.length - 1)) * plotW;
+  }, [rijMs, plotW]);
+
+  useEffect(() => {
+    if (zicht.r > zicht.l) zetVenster(pxNaarMs(zicht.l), pxNaarMs(zicht.r), "wind");
+  }, [zicht, pxNaarMs]);
+
+  const venster = useVenster();
+  const nuTeller = useNuTeller();
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!nuTeller || !el || nowIdx < 0) return;
+    el.scrollLeft = msNaarPx(rijMs[nowIdx]) - el.clientWidth / 2;
+    meetZicht();
+  }, [nuTeller]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!venster || venster.bron === "wind" || !el) return;
+    el.scrollLeft = msNaarPx(venster.start);
+  }, [venster, msNaarPx]);
 
   const dayBands = useMemo(() => {
     const plotW = chartW - LEFT_OFFSET - RIGHT_OFFSET;
@@ -321,12 +374,15 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
   // XAxis gebruikt numerieke _idx → payload.value is de index; tijdlabel opzoeken in data
   const XTick = useMemo(() => function Tick({ x, y, payload }) {
     const row = data[payload.value];
+    // Telefoon: 40px per uur, dan past alleen elk tweede hele uur leesbaar.
+    const t = row?.t ?? "";
+    const verberg = compact && t.endsWith(":00") && parseInt(t, 10) % 2 === 1;
     return (
-      <text x={x} y={y + 12} textAnchor="middle" fontSize={11} fill={LINE}>
-        {row?.t ?? ""}
+      <text x={x} y={y + (compact ? 12 : 17)} textAnchor="middle" fontSize={compact ? 11 : 15} fill={LINE}>
+        {verberg ? "" : t}
       </text>
     );
-  }, [data, LINE]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data, LINE, compact]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const liveT  = allRows.find((r) => r.kind === "live")?.t ?? null;
   const fcstT  = allRows.find((r) => r.kind === "fcst")?.t ?? null;
@@ -343,13 +399,13 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
   }, [data]);
 
   // Gecentreerde Y-as tick: tekst staat even ver van linker- als rechterkant van het Y-as paneel
-  const yAxisPanelW = compact ? 28 : 42;
+  const yAxisPanelW = compact ? 28 : 74;
 
   // Handmatige SVG Y-as — exacte pixel-uitlijning met hoofdgrafiek
   // Marges zijn identiek aan de ComposedChart: top=16, bottom=20, XAxis height=36
   const CHART_MARGIN_TOP  = 16;
   const CHART_MARGIN_BOT  = 20;
-  const XAXIS_H           = 36;
+  const XAXIS_H           = compact ? 36 : 42;
   const plotTop    = CHART_MARGIN_TOP;
   const plotBottom = useMemo(() => chartH - CHART_MARGIN_BOT - XAXIS_H, [chartH]);
   const plotHeight = useMemo(() => plotBottom - plotTop, [plotBottom]);
@@ -383,12 +439,26 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
     [data, nowIdx, unit, compact, GUST] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  const hasKnmi = allRows.some((r) => r.src === "knmi");
+  // Aangewezen punt doorgeven (voor de pijlen op de kaart); alleen bij een ander
+  // punt, niet bij elke muisbeweging. Het nu-punt of niets = live tonen.
+  const gekozenRef = useRef(null);
+  const kies = useCallback((i) => {
+    const idx = i == null ? null : Number(i);
+    if (idx === gekozenRef.current) return;
+    gekozenRef.current = idx;
+    onSelect?.(idx == null || idx === nowIdx ? null : allRows[idx] ?? null);
+  }, [onSelect, nowIdx, allRows]);
+  useEffect(() => () => onSelect?.(null), [onSelect]);
+
+  // Alleen "Measured" noemen wat echt gemeten is; anders eerlijk "Past (model)".
+  const BRONNAAM = { knmi: "KNMI", weather2kite: "Weather2Kite", buienradar: "Buienradar" };
+  const meetbron = BRONNAAM[["knmi", "weather2kite", "buienradar"].find((b) => allRows.some((r) => r.src === b))] ?? null;
+  const verledenLabel = vertaal(meetbron ? "Measured" : "Past (model)");
 
   if (!allRows.length) {
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: LINE, fontSize: 13 }}>
-        No wind data
+        {vertaal("No wind data")}
       </div>
     );
   }
@@ -402,44 +472,44 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
        en de datumscheiding) over de weekstrip eronder. Gemeten: 361px inhoud in
        een vak van 314px, dus 47px eroverheen: precies de dagnamen, datums en
        icoontjes die onzichtbaar waren. */
-    <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", backgroundColor: CREAM, padding: compact ? "4px 0 0 0" : "12px 0 0 0" }}>
+    <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", padding: compact ? "4px 0 0 0" : "12px 0 0 0" }}>
 
       {compact ? (
         /* ── Compacte header: titel + legenda op één regel ── */
         <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 10, paddingRight: 10, marginBottom: 3, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: LINE, flexShrink: 0 }}>
-            WIND{hasKnmi ? <span style={{ fontSize: 9, opacity: 0.65, marginLeft: 4 }}>KNMI</span> : null}
+            WIND{meetbron ? <span style={{ fontSize: 9, opacity: 0.65, marginLeft: 4 }}>{meetbron}</span> : null}
           </span>
           <div style={{ display: "flex", gap: 10, fontSize: 9, color: DARK, flexWrap: "wrap" }}>
-            <LegItem color={LINE}     line="solid"  label="Measured" />
-            <LegItem color={GUST}     line="dashed" label="Gust" />
-            <LegItem color={FORECAST} line="dotted" label="Forecast" />
-            <LegItem color={ORANGE}   line="dashed" label="Now" />
+            <LegItem color={LINE}     line="solid"  label={verledenLabel} />
+            <LegItem color={GUST}     line="dashed" label={vertaal("Gust")} />
+            <LegItem color={FORECAST} line="dotted" label={vertaal("Forecast")} />
+            <LegItem color={ORANGE}   line="dashed" label={vertaal("Now")} />
           </div>
         </div>
       ) : (
         <>
           {/* Titel + bron */}
           <div style={{ textAlign: "center", marginBottom: 2 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", color: LINE }}>Live WIND</span>
-            {hasKnmi && (
-              <span style={{ fontSize: 10, color: LINE, opacity: 0.65, marginLeft: 8 }}>
-                (past: KNMI st.330)
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.08em", color: LINE }}>{vertaal("Live WIND")}</span>
+            {meetbron && (
+              <span style={{ fontSize: 13, color: LINE, opacity: 0.65, marginLeft: 8 }}>
+                ({vertaal("past:")} {meetbron})
               </span>
             )}
           </div>
           {liveAt && (
-            <div style={{ textAlign: "center", fontSize: 9, color: LINE, marginBottom: 4 }}>
-              updated at: {liveAt.slice(11, 16)}
+            <div style={{ textAlign: "center", fontSize: 12, color: LINE, marginBottom: 4 }}>
+              {vertaal("updated at:")} {fmtUpdatedAt(liveAt, utcOffset)}
             </div>
           )}
 
           {/* Legenda */}
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", fontSize: 10, color: DARK, marginBottom: 6 }}>
-            <LegItem color={LINE}      line="solid"  label="Measured wind" />
-            <LegItem color={GUST}      line="dashed" label="Gust" />
-            <LegItem color={FORECAST}  line="dotted" label="Forecast" />
-            <LegItem color={ORANGE}    line="dashed" label="Now" />
+          <div style={{ display: "flex", gap: 18, justifyContent: "center", fontSize: 13, color: DARK, marginBottom: 6 }}>
+            <LegItem color={LINE}      line="solid"  label={vertaal(meetbron ? "Measured wind" : "Past (model)")} />
+            <LegItem color={GUST}      line="dashed" label={vertaal("Gust")} />
+            <LegItem color={FORECAST}  line="dotted" label={vertaal("Forecast")} />
+            <LegItem color={ORANGE}    line="dashed" label={vertaal("Now")} />
           </div>
         </>
       )}
@@ -457,7 +527,7 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
           {yTicks.map((v) => {
             const y = yOf(v);
             const isBottom = v === 0;
-            const fs = compact ? 9 : 11;
+            const fs = compact ? 9 : 18;
             return (
               <text
                 key={v}
@@ -466,7 +536,8 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
                 dy={isBottom ? 0 : "0.355em"}
                 textAnchor="middle"
                 fontSize={fs}
-                fill={LINE}
+                fontWeight={compact ? 400 : 600}
+                fill={compact ? LINE : DARK}
               >
                 {v} {unit}
               </text>
@@ -478,6 +549,7 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
       {/* Scrollbaar deel zonder Y-as */}
       <div
         ref={koppelScrollContainer}
+        onScroll={meetZicht}
         className="hide-scrollbar"
         style={{
           flex: 1, minHeight: 0, overflowX: "auto", overflowY: "hidden",
@@ -523,7 +595,8 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
         }}
       >
         <div style={{ width: chartW, position: "relative" }}>
-          <ComposedChart width={chartW} height={chartH} data={data} margin={{ top: 16, right: 24, bottom: 20, left: 4 }}>
+          <ComposedChart width={chartW} height={chartH} data={data} margin={{ top: 16, right: 24, bottom: 20, left: 4 }}
+            onMouseMove={(st) => kies(st?.activeTooltipIndex)} onMouseLeave={() => kies(null)}>
             <defs>
               <linearGradient id="windFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%"   stopColor={LINE} stopOpacity={0.45} />
@@ -538,14 +611,14 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
               ticks={data.map((_, i) => i)}
               tick={<XTick />}
               axisLine={{ stroke: LINE }} tickLine={{ stroke: LINE }}
-              interval={0} height={36}
+              interval={0} height={XAXIS_H}
             />
             <YAxis domain={yDomain} hide />
 
             {/* Referentielijnen — alleen tonen binnen huidig Y-bereik */}
             {visibleRefs.map((r) => (
               <ReferenceLine key={r.val} y={r.val} stroke={LINE} strokeDasharray="4 4" strokeOpacity={0.5}
-                label={{ value: r.label, position: "insideRight", fontSize: 10, fill: LINE }} />
+                label={{ value: r.label, position: "insideRight", fontSize: compact ? 10 : 13, fill: LINE }} />
             ))}
             {/* Dag-overgangen: alleen verticale lijn */}
             {dayChanges.map((row) => (
@@ -584,18 +657,24 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
             />
           </ComposedChart>
 
-          {/* Dag-strip onder de grafiek */}
+          {/* Dag-strip onder de grafiek. Het label staat in het midden van het
+              zichtbare deel van de dag, niet van de hele dag: anders viel het
+              bij een lange dag buiten beeld en bleef er een lege band over. */}
           <svg width={chartW} height={36} style={{ display: "block", marginTop: -16 }}>
             {dayBands.map((band) => {
-              const mx = (band.x1 + band.x2) / 2;
+              const half = compact ? 62 : 100;
+              const vl = Math.max(band.x1, zicht.l), vr = zicht.r > 0 ? Math.min(band.x2, zicht.r) : band.x2;
+              const mx = vr - vl >= 2 * half
+                ? (vl + vr) / 2
+                : (band.x1 + band.x2) / 2;
               const y  = 16;
               return (
                 <g key={band.date}>
                   {band.hasLeft  && <line x1={band.x1} y1={4} x2={band.x1} y2={28} stroke={LINE} strokeWidth={1.5} />}
                   {band.hasRight && <line x1={band.x2} y1={4} x2={band.x2} y2={28} stroke={LINE} strokeWidth={1.5} />}
-                  <line x1={band.x1 + (band.hasLeft ? 4 : 0)} y1={y} x2={mx - 62} y2={y} stroke={LINE} strokeOpacity={0.5} strokeWidth={1} />
-                  <line x1={mx + 62} y1={y} x2={band.x2 - (band.hasRight ? 4 : 0)} y2={y} stroke={LINE} strokeOpacity={0.5} strokeWidth={1} />
-                  <text x={mx} y={y + 6} textAnchor="middle" fontSize={16} fontWeight={700} fill={LINE}>
+                  <line x1={band.x1 + (band.hasLeft ? 4 : 0)} y1={y} x2={mx - half} y2={y} stroke={LINE} strokeOpacity={0.5} strokeWidth={1} />
+                  <line x1={mx + half} y1={y} x2={band.x2 - (band.hasRight ? 4 : 0)} y2={y} stroke={LINE} strokeOpacity={0.5} strokeWidth={1} />
+                  <text x={mx} y={y + 8} textAnchor="middle" fontSize={compact ? 16 : 24} fontWeight={700} fill={compact ? LINE : DARK}>
                     {fmtDayLong(band.date)}
                   </text>
                 </g>
@@ -609,11 +688,11 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
       {!compact && (
         <div style={{
           display: "flex", justifyContent: "space-between",
-          fontSize: 10, color: LINE, fontStyle: "italic",
+          fontSize: 13, color: LINE, fontStyle: "italic",
           paddingLeft: 4, paddingRight: 36, marginTop: 2,
         }}>
-          <span>← Measured</span>
-          {fcstT && <span style={{ color: FORECAST }}>Forecast →</span>}
+          <span>← {verledenLabel}</span>
+          {fcstT && <span style={{ color: FORECAST }}>{vertaal("Forecast")} →</span>}
         </div>
       )}
     </div>
@@ -642,7 +721,7 @@ function WindTooltip({ active, payload, unit, lineColor, bgColor }) {
 
   // Datum + tijd als header zodat de gebruiker ziet welk specifiek uur actief is
   const dateLabel = row?.date
-    ? new Date(row.date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+    ? fmtDay(row.date)
     : "";
   const timeLabel = row?.t ?? "";
 
@@ -651,12 +730,12 @@ function WindTooltip({ active, payload, unit, lineColor, bgColor }) {
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{dateLabel} {timeLabel}</div>
       {items.map((p) => {
         const name = p.dataKey === "stoot"
-          ? (measured ? "Gust (meas.)" : "Gust (fcst)")
-          : p.name;
+          ? vertaal(measured ? "Gust (meas.)" : "Gust (fcst)")
+          : vertaal(p.name);
         return <div key={p.dataKey}>{name}: {Number(p.value).toFixed(1)} {unit}</div>;
       })}
       {dir != null && (
-        <div style={{ marginTop: 4, color: ARROW }}>Direction: {toCompass(dir)}</div>
+        <div style={{ marginTop: 4, color: ARROW }}>{vertaal("Direction:")} {toCompass(dir)}</div>
       )}
     </div>
   );
@@ -681,14 +760,16 @@ function LegItem({ color, line, dot, label }) {
 function fmtDay(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr + "T12:00:00Z");
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  return hoofdletter(d.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }));
 }
 
 function fmtDayLong(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr + "T12:00:00Z");
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  return hoofdletter(d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "short" }));
 }
+
+const hoofdletter = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function cvt(ms, unit) {
   if (ms == null) return undefined;

@@ -8,6 +8,8 @@ backend/.venv/
 
 # Runtime state / cache
 backend/cache.json
+backend/leren.db
+backend/feedback.jsonl
 *.log
 
 # Node

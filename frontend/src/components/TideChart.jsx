@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import MiniChart from "./MiniChart.jsx";
 import { useTheme } from "../theme.js";
+import { t as vertaal } from "../taal.js";
 
 const TIDE_COLOR = "#2980b9";
 
@@ -69,10 +70,10 @@ export default function TideChart({ spot }) {
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: C.cream, overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", borderBottom: `1px solid ${C.border}44`, flexShrink: 0 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>TIDE</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>{vertaal("TIDE")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {nowVal != null && (
             <span style={{ fontSize: 20, fontWeight: 900, color: TIDE_COLOR, fontVariantNumeric: "tabular-nums" }}>
@@ -84,7 +85,7 @@ export default function TideChart({ spot }) {
               fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
               color: TIDE_COLOR, border: `1px solid ${TIDE_COLOR}`, borderRadius: 3, padding: "2px 5px",
             }}>
-              {trend === "RISING" ? "↑ RISING" : "↓ FALLING"}
+              {trend === "RISING" ? `↑ ${vertaal("RISING")}` : `↓ ${vertaal("FALLING")}`}
             </span>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import MiniChart from "./MiniChart.jsx";
 import { useTheme } from "../theme.js";
+import { t as vertaal } from "../taal.js";
 
 const CURRENT_BANDS = [
   { y1: 0,   y2: 0.5, fill: "#27ae60", fillOpacity: 0.07 },
@@ -83,10 +84,10 @@ export default function CurrentChart({ spot }) {
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: C.cream, overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", borderBottom: `1px solid ${C.border}44`, flexShrink: 0 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>CURRENT</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>{vertaal("CURRENT")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {liveSpeed != null && (
             <>
@@ -101,7 +102,7 @@ export default function CurrentChart({ spot }) {
                   fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
                   color, border: `1px solid ${color}`, borderRadius: 3, padding: "2px 5px",
                 }}>
-                  {label}
+                  {vertaal(label)}
                 </span>
               )}
             </>

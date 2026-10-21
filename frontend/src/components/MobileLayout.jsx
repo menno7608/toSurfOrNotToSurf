@@ -9,9 +9,15 @@ import WaveChart from "./WaveChart.jsx";
 import TideChart from "./TideChart.jsx";
 import RainChart from "./RainChart.jsx";
 import ChartTabs from "./ChartTabs.jsx";
+import KaartAchtergrond from "./KaartAchtergrond.jsx";
+import Instellingen from "./Instellingen.jsx";
+import { currentStrength, CURRENT_BANDS } from "./SpotSidebar.jsx";
 import { convertWind } from "./SpotInfo.jsx";
+import { fmtUpdatedAt } from "../time.js";
 import WEBCAMS from "../webcams.js";
 import { useTheme } from "../theme.js";
+import { useVenster } from "../tijdvenster.js";
+import { t as vertaal, locale, huidigeTaal, zetTaal } from "../taal.js";
 
 const WMO_ICON = {
   0: "sunny",   1: "sunny",   2: "partly-cloudy", 3: "overcast",
@@ -81,13 +87,6 @@ function compass(deg) {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
-const SWELL_BANDS = [
-  { y1: 0,  y2: 6,  fill: "#c0392b", fillOpacity: 0.07 },
-  { y1: 6,  y2: 10, fill: "#e07b3a", fillOpacity: 0.07 },
-  { y1: 10, y2: 14, fill: "#2980b9", fillOpacity: 0.07 },
-  { y1: 14, y2: 22, fill: "#27ae60", fillOpacity: 0.07 },
-];
-
 function cleanScore(hs, swh) {
   if (hs == null || hs === 0 || swh == null) return null;
   const pct = Math.round((swh / hs) * 100);
@@ -116,7 +115,7 @@ function waveQuality(period) {
 
 function filterMarine(marine, nowMs) {
   if (!marine?.length || nowMs == null) return [];
-  const lo = nowMs - 6  * 60 * 60 * 1000;
+  const lo = nowMs - 36 * 60 * 60 * 1000;  // zelfde terugblik als de windgrafiek (gekoppeld tijdvenster)
   const hi = nowMs + 24 * 60 * 60 * 1000;
   return marine
     .filter((p) => {
@@ -136,7 +135,7 @@ function nowKey(marine, nowMs) {
 
 function fmtShortDate(dateStr) {
   if (!dateStr) return "";
-  return new Date(dateStr + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return new Date(dateStr + "T12:00:00Z").toLocaleDateString(locale(), { day: "numeric", month: "short" });
 }
 
 function WindArrow({ deg = 0, size = 22 }) {
@@ -169,7 +168,16 @@ function BreakingWaveIcon({ active }) {
   );
 }
 
-function MobileSpotPicker({ spots, selectedId, onSelectId, favorites, onToggleFavorite }) {
+function HuisIcoon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinejoin="round" aria-label="Thuisspot" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }}>
+      <path d="M4 10.8 12 4l8 6.8V20h-5.2v-5.6H9.2V20H4Z" />
+    </svg>
+  );
+}
+
+function MobileSpotPicker({ spots, selectedId, onSelectId, favorites, onToggleFavorite, homeSpotId = "" }) {
   const C = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -181,11 +189,11 @@ function MobileSpotPicker({ spots, selectedId, onSelectId, favorites, onToggleFa
   return (
     <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
       <button onClick={() => { setOpen((v) => !v); setSearch(""); }} style={{
-        fontSize: "clamp(14px, 4vw, 20px)", fontWeight: 700, color: C.dark,
+        fontSize: "clamp(18px, 5.5vw, 24px)", fontWeight: 700, color: C.dark,
         background: "transparent", border: "none", outline: "none", cursor: "pointer",
         padding: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%",
       }}>
-        {selected?.name ?? "—"} ▾
+        {selected?.id && selected.id === homeSpotId && <HuisIcoon size={18} />}{selected?.name ?? "—"} ▾
       </button>
       {open && (
         <div style={{
@@ -220,7 +228,7 @@ function MobileSpotPicker({ spots, selectedId, onSelectId, favorites, onToggleFa
                     fontSize: 16, fontWeight: s.id === selectedId ? 700 : 400,
                     color: s.id === selectedId ? C.border : C.dark, cursor: "pointer",
                   }}>
-                    {s.name ?? s.id}
+                    {s.id === homeSpotId && <HuisIcoon />}{s.name ?? s.id}
                   </div>
                   <div onClick={() => onToggleFavorite(s.id)} style={{ padding: "12px 14px 12px 4px", cursor: "pointer" }}>
                     <BreakingWaveIcon active={favorites.includes(s.id)} />
@@ -252,6 +260,7 @@ export default function MobileLayout({
   isDark = false, onThemeToggle,
   waveUnit = "m", onWaveUnitToggle,
   alarmMatch = false, onAlarmToggle,
+  homeSpotId = "", onHomeSpot,
 }) {
   const C = useTheme();
   const l = spot?.live ?? {};
@@ -269,7 +278,8 @@ export default function MobileLayout({
   const marine     = useMemo(() => filterMarine(spot?.marine, nowMs), [spot?.marine, nowMs]);
   const marineNowT = useMemo(() => nowKey(marine, nowMs), [marine, nowMs]);
 
-  const cm    = marine[0] ?? null;
+  // "Nu" = het marinepunt dichtst bij de klok; marine[0] ligt sinds de 36 uur terugblik in het verleden.
+  const cm    = marine.find((p) => p._key === marineNowT) ?? marine[0] ?? null;
   const swp   = cm?.swp   ?? null;
   const tp    = cm?.tp    ?? l.wavePeriod ?? null;
   const swh   = cm?.swh   ?? null;
@@ -281,8 +291,10 @@ export default function MobileLayout({
   const quality    = waveQuality(swp ?? tp);
   const clean      = cleanScore(hs, swh);
   const swellShore = swellShoreType(swdir, spot?.shore_angle);
-  const startDate  = marine[0]?.date;
-  const endDate    = marine[marine.length - 1]?.date;
+  // Datums onder de grafieken volgen het gedeelde tijdvenster, niet de hele reeks.
+  const venster    = useVenster();
+  const startDate  = venster ? new Date(venster.start).toISOString().slice(0, 10) : marine[0]?.date;
+  const endDate    = venster ? new Date(venster.eind).toISOString().slice(0, 10) : marine[marine.length - 1]?.date;
 
   // Live klok
   const [time, setTime] = useState(() => new Date());
@@ -307,6 +319,16 @@ export default function MobileLayout({
   // Actieve grafiek-punten
   const [activeWave, setActiveWave]   = useState(null);
   const [activeSwell, setActiveSwell] = useState(null);
+  const [activeCurrent, setActiveCurrent] = useState(null);
+  // Aangewezen punt in de windgrafiek: de pijlen op de kaart volgen het.
+  const [kaartMoment, setKaartMoment] = useState(null);
+  useEffect(() => { setKaartMoment(null); }, [spot?.id]);
+
+  const currentData = useMemo(
+    () => marine.filter((p) => p.currentSpeed != null).map((p) => ({ t: p.t, _key: p._key, v: p.currentSpeed })),
+    [marine]
+  );
+  const currStr = currentStrength(l.currentSpeed);
 
   // Temperatuur toggle
   const [tempMode, setTempMode] = useState("air");
@@ -316,7 +338,6 @@ export default function MobileLayout({
 
   return (
     <div style={{
-      background: C.cream,
       display: "flex",
       flexDirection: "column",
       height: "100dvh",
@@ -334,10 +355,10 @@ export default function MobileLayout({
       overscrollBehaviorY: "contain",
       WebkitOverflowScrolling: "touch",
     }}>
+      <KaartAchtergrond spot={spot} spots={spots} homeSpotId={homeSpotId} unit={unit} moment={kaartMoment} compact />
 
       {/* ── HEADER: spot + tijd + LIVE ── */}
       <div style={{
-        background: C.cream,
         borderBottom: `2px solid ${C.border}`,
         /* De bovenmarge vangt de statusbalk van de telefoon op. `mobile.html`
            zet `apple-mobile-web-app-status-bar-style` op `black-translucent`,
@@ -355,18 +376,24 @@ export default function MobileLayout({
         paddingBottom: 6,
         flexShrink: 0,
       }}>
-        {/* Rij 1: spot naam + tijd + icoon + LIVE */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        {/* Rij 0: spotnaam over de volle breedte. Naast klok, icoon en knoppen
+            bleef er op een telefoon zo weinig over dat er "S…" stond. */}
+        <div style={{ display: "flex", marginBottom: 2 }}>
           {spots.length > 1 ? (
             <MobileSpotPicker
               spots={spots} selectedId={selectedId} onSelectId={onSelectId}
               favorites={favorites} onToggleFavorite={onToggleFavorite}
+              homeSpotId={homeSpotId}
             />
           ) : (
-            <span style={{ flex: 1, fontSize: "clamp(14px, 4vw, 20px)", fontWeight: 700, color: C.dark }}>
+            <span style={{ flex: 1, fontSize: "clamp(18px, 5.5vw, 24px)", fontWeight: 700, color: C.dark }}>
               {spot?.name ?? "—"}
             </span>
           )}
+        </div>
+
+        {/* Rij 1: icoon + tijd + LIVE + MAP */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
           <WeatherIcon code={l.weatherCode ?? null} windSpeed={l.windSpeed} size={64} />
           <span style={{
             fontSize: "clamp(21px, 8vw, 52px)", fontWeight: 900,
@@ -405,7 +432,7 @@ export default function MobileLayout({
               outline: "none",
             }}
           >
-            {rwsMapOpen ? "✕" : "MAP"}
+            {rwsMapOpen ? "✕" : vertaal("MAP")}
           </button>
         </div>
 
@@ -427,7 +454,7 @@ export default function MobileLayout({
               </div>
               {spot?.liveAt && (
                 <span style={{ fontSize: "clamp(9px, 2.4vw, 13px)", color: C.border, lineHeight: 1.3 }}>
-                  updated at: {spot.liveAt.slice(11, 16)}
+                  {vertaal("updated at:")} {fmtUpdatedAt(spot.liveAt, spot?.utcOffset)}
                 </span>
               )}
             </div>
@@ -451,7 +478,7 @@ export default function MobileLayout({
                     color: tempMode === m ? C.cream : C.border,
                     cursor: "pointer", fontWeight: tempMode === m ? 700 : 400,
                   }}>
-                    {m === "air" ? "Air" : "Water"}
+                    {vertaal(m === "air" ? "Air" : "Water")}
                   </button>
                 ))}
               </div>
@@ -465,7 +492,7 @@ export default function MobileLayout({
               </div>
               {tempMode === "air" && feelsLike != null && (
                 <span style={{ fontSize: 10, color: C.border }}>
-                  Feels {feelsLike.toFixed(1)}°
+                  {vertaal("Feels")} {feelsLike.toFixed(1)}°
                 </span>
               )}
             </div>
@@ -483,13 +510,13 @@ export default function MobileLayout({
           {
             label: "WAVE Hs",
             value: hs != null ? `${Number(hs).toFixed(1)} m` : "—",
-            sub: clean ? `CLEAN ${clean.pct}%` : undefined,
+            sub: clean ? `${vertaal("CLEAN")} ${clean.pct}%` : undefined,
             color: clean?.color,
           },
           {
             label: "PERIOD",
             value: (swp ?? tp) != null ? `${Number(swp ?? tp).toFixed(0)}s` : "—",
-            sub: quality?.label,
+            sub: quality ? vertaal(quality.label) : undefined,
             color: quality?.color,
           },
         ].map(({ label, value, sub, color }, i, arr) => (
@@ -500,7 +527,7 @@ export default function MobileLayout({
             display: "flex", flexDirection: "column", gap: 1,
           }}>
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: C.border, lineHeight: 1 }}>
-              {label}
+              {vertaal(label)}
             </span>
             <span style={{ fontSize: "clamp(14px, 4vw, 20px)", fontWeight: 700, color: color ?? C.dark, lineHeight: 1.1 }}>
               {value}
@@ -520,7 +547,7 @@ export default function MobileLayout({
           Anders belandt het over de weekstrip eronder, en dan lijkt die strip
           verdwenen terwijl hij er gewoon staat. */}
       <div style={{ flex: 1, minHeight: "clamp(220px, 42vh, 420px)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
-        <ChartTabs spot={spot} active={activeChart} onChange={setActiveChart} />
+        <ChartTabs spot={spot} active={activeChart} onChange={setActiveChart} taalKnop={false} />
         {activeChart === "wind" && (
           <WindChart
             past={spot?.windPast}
@@ -533,6 +560,7 @@ export default function MobileLayout({
             shoreAngle={spot?.shore_angle}
             utcOffset={spot?.utcOffset}
             scrollToDate={scrollTargetDate}
+            onSelect={setKaartMoment}
           />
         )}
         {activeChart === "current" && <CurrentChart spot={spot} />}
@@ -562,15 +590,16 @@ export default function MobileLayout({
       </div>
 
       {/* ── WEEKVERWACHTING ── */}
-      <WeekForecast windDaily={spot?.windDaily} unit={unit} compact={true} onDayClick={setScrollTargetDate} />
+      <WeekForecast windDaily={spot?.windDaily} unit={unit} compact={true} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} />
 
       {/* ── EENHEDEN + MODEL ── */}
       <div style={{
         borderTop: `1px solid ${C.border}44`,
         padding: "6px 12px",
         display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+        flexWrap: "wrap",
       }}>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div style={{ display: "flex", gap: 4, marginRight: "auto" }}>
           {UNITS.map((u) => (
             <button key={u} onClick={() => onUnitChange(u)} style={{
               fontSize: 11, padding: "3px 8px", borderRadius: 3,
@@ -592,7 +621,8 @@ export default function MobileLayout({
                pagina wordt vergroot en zoomt niet terug. `index.css` zet hem op
                aanraakschermen op 16px (de iOS-drempel) en laat het wandscherm
                ongemoeid. Een inline waarde zou die regel overrulen. */
-            flex: 1, minWidth: 0, padding: "4px 6px",
+            /* Eigen regel onder de knoppen (order), anders bleef er "Aut" over. */
+            flex: "1 1 auto", minWidth: 0, order: 2, padding: "4px 6px",
             border: `1px solid ${C.border}`, borderRadius: 4,
             background: C.cream, color: C.dark, cursor: "pointer", outline: "none",
           }}
@@ -601,8 +631,8 @@ export default function MobileLayout({
         </select>
         <button
           onClick={() => onSaveSpotModel?.(spot?.id, weatherModel)}
-          title={spotModels[spot?.id] === weatherModel ? "Remove favourite model" : "Save as favourite model for this spot"}
-          style={{ background: "none", border: "none", padding: "2px 4px", cursor: "pointer", lineHeight: 0, flexShrink: 0 }}
+          title={vertaal(spotModels[spot?.id] === weatherModel ? "Remove favourite model" : "Save as favourite model for this spot")}
+          style={{ background: "none", border: "none", padding: "2px 4px", cursor: "pointer", lineHeight: 0, flexShrink: 0, order: 3 }}
         >
           <BreakingWaveIcon active={spotModels[spot?.id] === weatherModel} />
         </button>
@@ -614,7 +644,18 @@ export default function MobileLayout({
             color: C.border, cursor: "pointer", fontWeight: 700,
           }}
         >
-          {isDark ? "LIGHT" : "DARK"}
+          {vertaal(isDark ? "LIGHT" : "DARK")}
+        </button>
+        <button
+          onClick={() => zetTaal(huidigeTaal() === "nl" ? "en" : "nl")}
+          title="Nederlands / English"
+          style={{
+            fontSize: 10, padding: "3px 8px", borderRadius: 3, flexShrink: 0,
+            border: `1px solid ${C.border}`, background: "transparent",
+            color: C.border, cursor: "pointer", fontWeight: 700,
+          }}
+        >
+          {huidigeTaal() === "nl" ? "NL" : "EN"}
         </button>
         <button
           onClick={() => onAlarmToggle?.()}
@@ -630,9 +671,11 @@ export default function MobileLayout({
         >
           ≋ ALARM
         </button>
+        <Instellingen spots={spots} homeSpotId={homeSpotId} onHomeSpot={onHomeSpot} onSelectSpot={onSelectId} color={C.border} />
+        <div style={{ flexBasis: "100%", height: 0, order: 1 }} />
       </div>
 
-      {/* ── WAVES + SWELL QUALITY ── */}
+      {/* ── WAVES + ENERGY + CURRENT ── */}
       <div style={{
         borderTop: `2px solid ${C.border}`,
         display: "flex",
@@ -644,9 +687,9 @@ export default function MobileLayout({
         <div style={{ padding: "8px 12px 6px", borderBottom: `1px solid ${C.border}44` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: C.border }}>WAVES</span>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", color: C.border }}>{vertaal("WAVES")}</span>
               <button onClick={onWaveUnitToggle} style={{
-                fontSize: 7, fontWeight: 700, padding: "1px 3px", borderRadius: 3,
+                fontSize: 10, fontWeight: 700, padding: "1px 4px", borderRadius: 3,
                 border: `1px solid ${C.border}`, background: "transparent",
                 color: C.border, cursor: "pointer", letterSpacing: "0.04em", lineHeight: 1.4,
               }}>
@@ -655,11 +698,11 @@ export default function MobileLayout({
             </div>
             {quality && (
               <span style={{
-                fontSize: 7, fontWeight: 700, color: quality.color,
+                fontSize: 9, fontWeight: 700, color: quality.color,
                 border: `1px solid ${quality.color}`, borderRadius: 2,
-                padding: "1px 3px", lineHeight: 1.4,
+                padding: "1px 4px", lineHeight: 1.4,
               }}>
-                {quality.label}
+                {vertaal(quality.label)}
               </span>
             )}
           </div>
@@ -679,104 +722,144 @@ export default function MobileLayout({
                 v2AsArea
                 xKey="_key"
                 nowT={marineNowT}
+                scrollable
               />
             </div>
             <div style={{
-              width: 52, display: "flex", flexDirection: "column",
-              justifyContent: "center", alignItems: "flex-end", gap: 1, flexShrink: 0,
+              width: 64, display: "flex", flexDirection: "column",
+              justifyContent: "center", alignItems: "flex-end", gap: 2, flexShrink: 0,
             }}>
-              <span style={{ fontSize: 8, color: C.border, lineHeight: 1 }}>
-                {activeWave ? activeWave.t : "now"}
+              <span style={{ fontSize: 10, color: C.border, lineHeight: 1 }}>
+                {activeWave ? activeWave.t : vertaal("now")}
               </span>
-              <span style={{ fontSize: 15, fontWeight: 800, color: C.dark, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: C.dark, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
                 {fmtWave(activeWave ? activeWave.v : hs, waveUnit)}
               </span>
               {(activeWave ? activeWave.v2 != null : swh != null) && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: "#60b8e8", lineHeight: 1 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#60b8e8", lineHeight: 1 }}>
                   {fmtWave(activeWave ? activeWave.v2 : swh, waveUnit)}
                 </span>
               )}
               {!activeWave && swdir != null && (
-                <span style={{ fontSize: 8, color: C.border, lineHeight: 1 }}>
+                <span style={{ fontSize: 10, color: C.border, lineHeight: 1 }}>
                   {compass(swdir)}
                 </span>
               )}
               {!activeWave && swellShore && (
                 <span style={{
-                  fontSize: 7, fontWeight: 700, letterSpacing: "0.04em",
+                  fontSize: 9, fontWeight: 700, letterSpacing: "0.04em",
                   color: swellShore.color, border: `1px solid ${swellShore.color}`,
                   borderRadius: 2, padding: "1px 3px", lineHeight: 1.5,
                 }}>
-                  {swellShore.label}
+                  {vertaal(swellShore.label)}
                 </span>
               )}
             </div>
           </div>
           {startDate !== endDate && (
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: C.border, opacity: 0.7, marginTop: 2, paddingRight: 56 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.border, opacity: 0.7, marginTop: 2, paddingRight: 68 }}>
               <span>{fmtShortDate(startDate)}</span>
               <span>{fmtShortDate(endDate)}</span>
             </div>
           )}
         </div>
 
-        {/* SWELL QUALITY */}
-        <div style={{ padding: "8px 12px 12px" }}>
+        {/* ENERGY (kJ) — zelfde als op het wandscherm */}
+        <div style={{ padding: "8px 12px 6px", borderBottom: `1px solid ${C.border}44` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: C.border }}>SWELL QUALITY</span>
-            {quality && (
-              <span style={{
-                fontSize: 7, fontWeight: 700, color: quality.color,
-                border: `1px solid ${quality.color}`, borderRadius: 2,
-                padding: "1px 3px", lineHeight: 1.4,
-              }}>
-                {quality.label}
-              </span>
-            )}
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", color: C.border }}>{vertaal("ENERGY")}</span>
           </div>
           <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <MiniChart
-                data={marine.map((p) => ({ t: p.t, _key: p._key, v: p.swp ?? p.tp }))}
-                unit="s"
-                yTicks={[4, 8, 12, 16]}
-                lineColor={quality?.color ?? C.border}
+                data={marine.map((p) => ({ t: p.t, _key: p._key, v: p.energy }))}
+                unit="kJ"
+                yTicks={[0, 200, 400]}
                 height={80}
                 onActiveChange={setActiveSwell}
-                bands={SWELL_BANDS}
                 xKey="_key"
                 nowT={marineNowT}
+                scrollable
               />
             </div>
             <div style={{
-              width: 52, display: "flex", flexDirection: "column",
-              justifyContent: "center", alignItems: "flex-end", gap: 1, flexShrink: 0,
+              width: 64, display: "flex", flexDirection: "column",
+              justifyContent: "center", alignItems: "flex-end", gap: 2, flexShrink: 0,
             }}>
-              <span style={{ fontSize: 8, color: C.border, lineHeight: 1 }}>
-                {activeSwell ? activeSwell.t : "now"}
+              <span style={{ fontSize: 10, color: C.border, lineHeight: 1 }}>
+                {activeSwell ? activeSwell.t : vertaal("now")}
               </span>
-              <span style={{
-                fontSize: 15, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: "tabular-nums",
-                color: quality?.color ?? C.dark,
-              }}>
-                {activeSwell
-                  ? (activeSwell.v != null ? `${Number(activeSwell.v).toFixed(0)}s` : "—")
-                  : ((swp ?? tp) != null ? `${Number(swp ?? tp).toFixed(0)}s` : "—")}
+              <span style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", color: C.dark }}>
+                {(() => {
+                  const v = activeSwell ? activeSwell.v : (cm?.energy ?? l.waveEnergy);
+                  return v != null ? `${Number(v).toFixed(0)} kJ` : "—";
+                })()}
               </span>
               {!activeSwell && swdir != null && (
-                <span style={{ fontSize: 8, color: C.border, lineHeight: 1 }}>
+                <span style={{ fontSize: 10, color: C.border, lineHeight: 1 }}>
                   {compass(swdir)}
                 </span>
               )}
             </div>
           </div>
           {startDate !== endDate && (
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: C.border, opacity: 0.7, marginTop: 2, paddingRight: 56 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.border, opacity: 0.7, marginTop: 2, paddingRight: 68 }}>
               <span>{fmtShortDate(startDate)}</span>
               <span>{fmtShortDate(endDate)}</span>
             </div>
           )}
         </div>
+
+        {/* CURRENT — zelfde als op het wandscherm */}
+        {currentData.length > 0 && (
+          <div style={{ padding: "8px 12px 12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", color: C.border }}>{vertaal("CURRENT")}</span>
+              {currStr && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700, color: currStr.color,
+                  border: `1px solid ${currStr.color}`, borderRadius: 2,
+                  padding: "1px 4px", lineHeight: 1.4,
+                }}>
+                  {vertaal(currStr.label)}
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <MiniChart
+                  data={currentData}
+                  unit="kts"
+                  yTicks={[0, 0.5, 1, 1.5, 2]}
+                  lineColor={currStr?.color ?? C.border}
+                  height={80}
+                  onActiveChange={setActiveCurrent}
+                  bands={CURRENT_BANDS}
+                  xKey="_key"
+                  nowT={marineNowT}
+                  scrollable
+                />
+              </div>
+              <div style={{
+                width: 64, display: "flex", flexDirection: "column",
+                justifyContent: "center", alignItems: "flex-end", gap: 2, flexShrink: 0,
+              }}>
+                <span style={{ fontSize: 10, color: C.border, lineHeight: 1 }}>
+                  {activeCurrent ? activeCurrent.t : vertaal("now")}
+                </span>
+                <span style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", color: currStr?.color ?? C.dark }}>
+                  {(() => {
+                    const v = activeCurrent ? activeCurrent.v : l.currentSpeed;
+                    return v != null ? Number(v).toFixed(1) : "—";
+                  })()}
+                </span>
+                <span style={{ fontSize: 10, color: C.border, lineHeight: 1 }}>
+                  kts{!activeCurrent && l.currentDirection != null ? ` ${compass(l.currentDirection)}` : ""}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

@@ -1,7 +1,9 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { convertWind } from "./SpotInfo.jsx";
 import MiniChart from "./MiniChart.jsx";
 import { useTheme } from "../theme.js";
+import { useVenster } from "../tijdvenster.js";
+import { t as vertaal, locale } from "../taal.js";
 
 const MODELS = [
   { id: "best_match",                 label: "Best Match (auto)" },
@@ -19,7 +21,7 @@ const PXi = "5px 10px";           // info-secties: links/rechts gelijk voor visu
 
 function filterMarine(marine, nowMs) {
   if (!marine?.length || nowMs == null) return [];
-  const lo = nowMs -   6 * 60 * 60 * 1000;
+  const lo = nowMs -  36 * 60 * 60 * 1000;  // zelfde terugblik als de windgrafiek (gekoppeld tijdvenster)
   const hi = nowMs + 240 * 60 * 60 * 1000;
   return marine
     .filter((p) => {
@@ -39,15 +41,8 @@ function nowKey(marine, nowMs) {
 
 function fmtShortDate(dateStr) {
   if (!dateStr) return "";
-  return new Date(dateStr + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return new Date(dateStr + "T12:00:00Z").toLocaleDateString(locale(), { day: "numeric", month: "short" });
 }
-
-const SWELL_BANDS = [
-  { y1: 0,  y2: 6,  fill: "#c0392b", fillOpacity: 0.07 },
-  { y1: 6,  y2: 10, fill: "#e07b3a", fillOpacity: 0.07 },
-  { y1: 10, y2: 14, fill: "#2980b9", fillOpacity: 0.07 },
-  { y1: 14, y2: 22, fill: "#27ae60", fillOpacity: 0.07 },
-];
 
 function cleanScore(hs, swh) {
   if (hs == null || hs === 0 || swh == null) return null;
@@ -81,7 +76,7 @@ function compass(deg) {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
-function currentStrength(kts) {
+export function currentStrength(kts) {
   if (kts == null) return null;
   if (kts < 0.5)  return { label: "WEAK",     color: "#27ae60" };
   if (kts < 1.5)  return { label: "MODERATE", color: "#60b8e8" };
@@ -96,7 +91,7 @@ function currentTideType(currentDir, shoreAngle) {
   return                  { label: "CROSS", color: "#2980b9" };
 }
 
-const CURRENT_BANDS = [
+export const CURRENT_BANDS = [
   { y1: 0,   y2: 0.5, fill: "#27ae60", fillOpacity: 0.07 },
   { y1: 0.5, y2: 1.5, fill: "#2980b9", fillOpacity: 0.07 },
   { y1: 1.5, y2: 5.0, fill: "#e07b3a", fillOpacity: 0.07 },
@@ -124,8 +119,19 @@ function fmtWave(m, waveUnit) {
 }
 
 
-export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWaveUnitToggle, weatherModel, onModelChange, spotModels = {}, onSaveSpotModel }) {
+export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWaveUnitToggle, weatherModel, onModelChange, spotModels = {}, onSaveSpotModel, onOnderHoogte }) {
   const C = useTheme();
+
+  // Hoogte van SPOT INFO + WEATHER MODEL. De weekstrip rechts neemt die over,
+  // zodat de bovenranden van beide onderste vensters op één lijn liggen.
+  const onderRef = useRef(null);
+  useEffect(() => {
+    const el = onderRef.current;
+    if (!el || !onOnderHoogte) return undefined;
+    const ro = new ResizeObserver(() => onOnderHoogte(Math.round(el.getBoundingClientRect().height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onOnderHoogte]);
   const l = spot?.live ?? {};
 
   // Clock die elke minuut tikt zodat marinevenster en "nu"-markering actueel blijven
@@ -144,20 +150,24 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
   const marine     = useMemo(() => filterMarine(spot?.marine, nowMs), [spot?.marine, nowMs]);
   const marineNowT = useMemo(() => nowKey(marine, nowMs), [marine, nowMs]);
 
-  const cm  = marine[0] ?? null;
+  // "Nu" = het marinepunt dichtst bij de klok; marine[0] ligt sinds de 36 uur terugblik in het verleden.
+  const cm  = marine.find((p) => p._key === marineNowT) ?? marine[0] ?? null;
   const hs  = cm?.hs  ?? l.waveHeight;
   const tp  = cm?.tp  ?? l.wavePeriod;
   const swh = cm?.swh ?? null;
   const swp = cm?.swp ?? null;
   const swdir  = cm?.swdir ?? null;
+  const energy = cm?.energy ?? l.waveEnergy;
   const wwh    = cm?.wwh ?? null;
   const wwp    = cm?.wwp ?? null;
 
   const quality    = waveQuality(swp ?? tp);
   const clean      = cleanScore(hs, swh);
   const swellShore = swellShoreType(swdir, spot?.shore_angle);
-  const startDate  = marine[0]?.date;
-  const endDate    = marine[marine.length - 1]?.date;
+  // Datums onder de grafieken volgen het gedeelde tijdvenster, niet de hele reeks.
+  const venster    = useVenster();
+  const startDate  = venster ? new Date(venster.start).toISOString().slice(0, 10) : marine[0]?.date;
+  const endDate    = venster ? new Date(venster.eind).toISOString().slice(0, 10) : marine[marine.length - 1]?.date;
 
   const hasWavesPanel = clean != null || quality != null || swh != null || wwh != null || tp != null;
   const hasSwellPanel = swdir != null;
@@ -177,7 +187,6 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
       width: "clamp(230px, 24vw, 360px)",
       boxSizing: "border-box",
       borderRight: `2px solid ${C.border}`,
-      backgroundColor: C.cream,
       display: "flex",
       flexDirection: "column",
       flexShrink: 0,
@@ -192,17 +201,16 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
         display: "flex", flexDirection: "column",
       }}>
         {/* Header: label + toggle | huidige hoogte */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3, flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <SectionLabel>WAVES</SectionLabel>
-            <button onClick={onWaveUnitToggle} style={{
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexShrink: 0 }}>
+          <button onClick={onWaveUnitToggle} style={{
+              marginRight: "auto",
               fontSize: 8, fontWeight: 700, padding: "1px 4px", borderRadius: 3,
               border: `1px solid ${C.border}`, background: "transparent",
               color: C.border, cursor: "pointer", letterSpacing: "0.05em", lineHeight: 1.4,
             }}>
               {waveUnit === "m" ? "m·ft" : "ft·m"}
-            </button>
-          </div>
+          </button>
+          <SectionLabel>WAVES</SectionLabel>
           <span style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>{fmtWave(hs, waveUnit)}</span>
         </div>
 
@@ -233,12 +241,12 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
             }}>
               {clean && (
                 <span style={{ fontSize: 8, fontWeight: 700, color: clean.color }}>
-                  CLEAN {clean.pct}%
+                  {vertaal("CLEAN")} {clean.pct}%
                 </span>
               )}
               {quality && (
                 <span style={{ fontSize: 8, fontWeight: 700, color: quality.color }}>
-                  {quality.label}
+                  {vertaal(quality.label)}
                 </span>
               )}
               {swh != null && (
@@ -253,7 +261,7 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
               )}
               {swellShore && (
                 <span style={{ fontSize: 8, fontWeight: 700, color: swellShore.color }}>
-                  {swellShore.label}
+                  {vertaal(swellShore.label)}
                 </span>
               )}
               {wwh != null && (
@@ -279,41 +287,28 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
         )}
       </section>
 
-      {/* ── SWELL QUALITY ── */}
+      {/* ── GOLFENERGIE (kJ) ── */}
       <section style={{
         padding: PX,
         borderBottom: `1px solid ${C.border}`,
         flex: 3, minHeight: 0,
         display: "flex", flexDirection: "column",
       }}>
-        {/* Header: label | periode + kwaliteitskleur */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3, flexShrink: 0 }}>
-          <SectionLabel>SWELL QUALITY</SectionLabel>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: quality?.color ?? C.dark }}>
-              {(swp ?? tp) != null ? `${Number(swp ?? tp).toFixed(0)}s` : "—"}
-            </span>
-            {quality && (
-              <span style={{
-                fontSize: 7.5, fontWeight: 700, letterSpacing: "0.04em",
-                color: quality.color, border: `1px solid ${quality.color}`,
-                borderRadius: 2, padding: "1px 3px", lineHeight: 1.5,
-              }}>
-                {quality.label}
-              </span>
-            )}
-          </div>
+        {/* Header: label + golfenergie nu, rechts tegen de grafiekas */}
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 3, flexShrink: 0 }}>
+          <SectionLabel>ENERGY</SectionLabel>
+          <span style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
+            {energy != null ? `${Number(energy).toFixed(0)} kJ` : "—"}
+          </span>
         </div>
 
         {/* Grafiek vult volledige breedte; data als rechts-uitgelijnde overlay */}
         <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
           <MiniChart
-            data={marine.map((p) => ({ t: p.t, _key: p._key, v: p.swp ?? p.tp }))}
-            unit="s"
-            yTicks={[4, 8, 12, 16]}
-            lineColor={quality?.color ?? C.border}
+            data={marine.map((p) => ({ t: p.t, _key: p._key, v: p.energy }))}
+            unit="kJ"
+            yTicks={[0, 200, 400]}
             height="100%"
-            bands={SWELL_BANDS}
             xKey="_key"
             nowT={marineNowT}
             scrollable
@@ -333,7 +328,7 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
               <span style={{ fontSize: 9, color: C.border }}>{swdir}°</span>
               {swellShore && (
                 <span style={{ fontSize: 8, fontWeight: 700, color: swellShore.color, marginTop: 1 }}>
-                  {swellShore.label}
+                  {vertaal(swellShore.label)}
                 </span>
               )}
               {tp != null && (
@@ -362,7 +357,7 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
           flex: 3, minHeight: 0,
           display: "flex", flexDirection: "column",
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3, flexShrink: 0 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 3, flexShrink: 0 }}>
             <SectionLabel>CURRENT</SectionLabel>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: currStr?.color ?? C.dark }}>
@@ -374,7 +369,7 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
                   color: currStr.color, border: `1px solid ${currStr.color}`,
                   borderRadius: 2, padding: "1px 3px", lineHeight: 1.5,
                 }}>
-                  {currStr.label}
+                  {vertaal(currStr.label)}
                 </span>
               )}
             </div>
@@ -408,7 +403,7 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
               )}
               {tideType && (
                 <span style={{ fontSize: 8, fontWeight: 700, color: tideType.color, marginTop: 1 }}>
-                  {tideType.label}
+                  {vertaal(tideType.label)}
                 </span>
               )}
             </div>
@@ -423,6 +418,9 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
         </section>
       )}
 
+      {/* Eigen 2px-bovenrand, 1px omhoog over de onderrand van het venster erboven:
+          één lijn, even dik als die boven de weekstrip, zodat ze strak doorlopen. */}
+      <div ref={onderRef} style={{ flexShrink: 0, borderTop: `2px solid ${C.border}`, marginTop: -1 }}>
       {/* ── SPOT INFO — compact 2-koloms grid ── */}
       <section style={{ padding: PXi, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
         {/* Naam op dezelfde regel als het label */}
@@ -464,12 +462,12 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
             }}
           >
             {MODELS.map((m) => (
-              <option key={m.id} value={m.id}>{m.label}</option>
+              <option key={m.id} value={m.id}>{vertaal(m.label)}</option>
             ))}
           </select>
           <button
             onClick={() => onSaveSpotModel?.(spot?.id, weatherModel)}
-            title={spotModels[spot?.id] === weatherModel ? "Remove pinned model" : "Pin as default for this spot"}
+            title={vertaal(spotModels[spot?.id] === weatherModel ? "Remove pinned model" : "Pin as default for this spot")}
             style={{
               background: "none", border: "none",
               padding: "2px 4px", cursor: "pointer",
@@ -481,6 +479,7 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
           </button>
         </div>
       </section>
+      </div>
     </div>
   );
 }
@@ -488,8 +487,8 @@ export default function SpotSidebar({ spot, unit = "kts", waveUnit = "m", onWave
 function SectionLabel({ children }) {
   const C = useTheme();
   return (
-    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: C.border, flexShrink: 0 }}>
-      {children}
+    <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", color: C.border, flexShrink: 0 }}>
+      {typeof children === "string" ? vertaal(children) : children}
     </div>
   );
 }
@@ -507,7 +506,7 @@ function InfoRow({ label, value }) {
   const C = useTheme();
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 10, lineHeight: 1.5 }}>
-      <span style={{ color: C.border, flexShrink: 0, marginRight: 2 }}>{label}</span>
+      <span style={{ color: C.border, flexShrink: 0, marginRight: 2 }}>{vertaal(label)}</span>
       <span style={{ fontWeight: 600, color: C.dark, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
     </div>
   );

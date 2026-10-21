@@ -1,4 +1,5 @@
 import { useTheme } from "../theme.js";
+import { t as vertaal } from "../taal.js";
 import { ALL_SHORE_TYPES } from "../hooks/useAlarmRules.js";
 import { useAlarmMatch } from "../hooks/useAlarmMatch.js";
 
@@ -16,7 +17,7 @@ function Label({ children }) {
   const C = useTheme();
   return (
     <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: C.border, marginBottom: 5 }}>
-      {children}
+      {typeof children === "string" ? vertaal(children) : children}
     </div>
   );
 }
@@ -27,7 +28,7 @@ function RangeRow({ label, min, max, value, onChange, unit, fmt }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 3 }}>
-        <span style={{ color: C.border }}>{label}</span>
+        <span style={{ color: C.border }}>{vertaal(label)}</span>
         <span style={{ color: C.dark, fontWeight: 700 }}>{display}</span>
       </div>
       <input
@@ -60,7 +61,7 @@ function ShoreCheckboxes({ selected, onChange }) {
                 cursor: "pointer",
               }}
             >
-              {type}
+              {vertaal(type)}
             </button>
           );
         })}
@@ -141,7 +142,7 @@ export default function AlarmPanel({ spot, rules, updateRule, spotSport, setSpot
       >
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.border }}>ALARM RULES</span>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.border }}>{vertaal("ALARM RULES")}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.border, lineHeight: 1, padding: 0 }}>✕</button>
         </div>
 
@@ -162,7 +163,7 @@ export default function AlarmPanel({ spot, rules, updateRule, spotSport, setSpot
                   cursor: "pointer",
                 }}
               >
-                {label}
+                {vertaal(label)}
               </button>
             ))}
           </div>
@@ -185,7 +186,7 @@ export default function AlarmPanel({ spot, rules, updateRule, spotSport, setSpot
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>{fmtMatchTime(firstMatch)}</div>
                 <div style={{ fontSize: 10, color: C.border, marginTop: 2 }}>
-                  {matches.length} hour{matches.length !== 1 ? "s" : ""} of good conditions found
+                  {matches.length} {vertaal(matches.length !== 1 ? "hours of good conditions found" : "hour of good conditions found")}
                 </div>
               </>
             ) : (
@@ -203,7 +204,7 @@ export default function AlarmPanel({ spot, rules, updateRule, spotSport, setSpot
 
         {/* Toekomstige koppeling */}
         <div style={{ marginTop: 14, fontSize: 9, color: C.border, opacity: 0.5, textAlign: "center" }}>
-          Push notifications coming soon
+          {vertaal("Push notifications coming soon")}
         </div>
       </div>
     </div>

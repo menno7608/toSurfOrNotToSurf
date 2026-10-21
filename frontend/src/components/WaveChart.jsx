@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import MiniChart from "./MiniChart.jsx";
 import { useTheme } from "../theme.js";
+import { t as vertaal } from "../taal.js";
 
 const SWELL_BANDS = [
   { y1: 0,  y2: 6,  fill: "#c0392b", fillOpacity: 0.07 },
@@ -13,7 +14,7 @@ const M_TO_FT = 3.28084;
 
 function filterMarine(marine, nowMs) {
   if (!marine?.length || nowMs == null) return [];
-  const lo = nowMs -   6 * 60 * 60 * 1000;
+  const lo = nowMs -  36 * 60 * 60 * 1000;  // zelfde terugblik als de windgrafiek (gekoppeld tijdvenster)
   const hi = nowMs + 240 * 60 * 60 * 1000;
   return marine
     .filter((p) => {
@@ -97,12 +98,12 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: C.cream, overflowY: "auto", overflowX: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden" }}>
 
       {/* ── GOLFHOOGTE ── */}
       <div style={{ flex: "0 0 auto", height: 180, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFHOOGTE</span>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>{vertaal("WAVE HEIGHT")}</span>
           <div style={{ textAlign: "right" }}>
             <span style={{ fontSize: 20, fontWeight: 900, color: C.dark }}>
               {fmtWave(activeWave ? activeWave.v : hs, waveUnit)}
@@ -136,7 +137,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       {/* ── SWELL PERIODE ── */}
       <div style={{ flex: "0 0 auto", height: 150, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}44` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>SWELL PERIOD</span>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>{vertaal("SWELL PERIOD")}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ textAlign: "right" }}>
               <span style={{ fontSize: 18, fontWeight: 900, color: quality?.color ?? C.dark }}>
@@ -154,7 +155,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
                 color: quality.color, border: `1px solid ${quality.color}`,
                 borderRadius: 2, padding: "1px 4px",
               }}>
-                {quality.label}
+                {vertaal(quality.label)}
               </span>
             )}
           </div>
@@ -178,7 +179,7 @@ export default function WaveChart({ spot, waveUnit = "m" }) {
       {/* ── GOLFENERGIE ── */}
       <div style={{ flex: "0 0 auto", height: 150, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px 4px", flexShrink: 0 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>GOLFENERGIE</span>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.border }}>{vertaal("WAVE ENERGY")}</span>
           <div style={{ textAlign: "right" }}>
             <span style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>
               {(activeEnergy ? activeEnergy.v : energy) != null
