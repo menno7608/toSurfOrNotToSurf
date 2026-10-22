@@ -260,7 +260,7 @@ export default function MobileLayout({
   isDark = false, onThemeToggle,
   waveUnit = "m", onWaveUnitToggle,
   alarmMatch = false, onAlarmToggle,
-  homeSpotId = "", onHomeSpot,
+  homeSpotId = "", onHomeSpot, matchDays,
 }) {
   const C = useTheme();
   const l = spot?.live ?? {};
@@ -590,7 +590,7 @@ export default function MobileLayout({
       </div>
 
       {/* ── WEEKVERWACHTING ── */}
-      <WeekForecast windDaily={spot?.windDaily} unit={unit} compact={true} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} />
+      <WeekForecast windDaily={spot?.windDaily} unit={unit} compact={true} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} matchDays={matchDays} />
 
       {/* ── EENHEDEN + MODEL ── */}
       <div style={{

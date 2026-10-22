@@ -69,6 +69,17 @@ const NL = {
   "Tap ⋯ (or ⋮) at the top right and choose 'Open in browser' (Safari or Chrome).":
     "Tik op de ⋯ (of ⋮) rechtsboven en kies 'Openen in browser' (Safari of Chrome).",
   "Then tap 'Install app'.": "Tik daar op 'App installeren'.",
+  Fireworks: "Vuurwerk",
+  "Show fireworks on days that match my alarm": "Vuurwerk tonen op dagen die aan mijn alarm voldoen",
+  "Repeat while viewing such a day": "Herhalen zolang je zo'n dag bekijkt",
+  "Every 15 seconds": "Elke 15 seconden", "Every 30 seconds": "Elke 30 seconden",
+  "Every minute": "Elke minuut", "Every 5 minutes": "Elke 5 minuten",
+  "Only when opening the app": "Alleen bij het openen van de app",
+  Preview: "Voorbeeld",
+  "Set a sport under ALARM first — fireworks appear on the days it matches.":
+    "Stel eerst een sport in onder ALARM — het vuurwerk verschijnt op de dagen die passen.",
+  "Animation speed": "Snelheid van de animatie",
+  Faster: "Sneller", Normal: "Normaal", Slower: "Langzamer", "Much slower": "Veel langzamer",
 };
 
 const SLEUTEL = "taal";

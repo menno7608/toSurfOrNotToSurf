@@ -296,7 +296,7 @@ export default function App({ forceMobile = false }) {
   );
 
   const activeSport = spotSport[spot?.id] ?? "off";
-  const { hasMatch } = useAlarmMatch(spot, rules, activeSport);
+  const { hasMatch, matchDays } = useAlarmMatch(spot, rules, activeSport);
 
   // Auto-switch theme at sunrise/sunset for the selected spot's location
   useSunTheme(spot?.location?.lat, spot?.location?.lon, setIsDark);
@@ -360,6 +360,7 @@ export default function App({ forceMobile = false }) {
           onAlarmToggle={() => setAlarmOpen((v) => !v)}
           homeSpotId={homeSpotId}
           onHomeSpot={kiesThuisspot}
+          matchDays={matchDays}
         />
         {alarmOpen && (
           <AlarmPanel
@@ -428,7 +429,7 @@ export default function App({ forceMobile = false }) {
             {activeChart === "waves"   && <WaveChart spot={spot} waveUnit={waveUnit} />}
             {activeChart === "tide"    && <TideChart spot={spot} />}
             {activeChart === "rain"    && <RainChart spot={spot} />}
-            <WeekForecast windDaily={spot?.windDaily} unit={unit} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} hoogte={onderHoogte} />
+            <WeekForecast windDaily={spot?.windDaily} unit={unit} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} hoogte={onderHoogte} matchDays={matchDays} />
             {webcamOpen && (
               <div style={{
                 position: "absolute", inset: 0,

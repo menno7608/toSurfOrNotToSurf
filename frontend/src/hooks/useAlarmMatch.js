@@ -27,9 +27,9 @@ export function useAlarmMatch(spot, rules, activeSport) {
   }, []);
 
   return useMemo(() => {
-    if (!spot || !activeSport || activeSport === "off") return { matches: [], hasMatch: false };
+    if (!spot || !activeSport || activeSport === "off") return { matches: [], hasMatch: false, matchDays: new Set() };
     const rule = rules?.[activeSport];
-    if (!rule) return { matches: [], hasMatch: false };
+    if (!rule) return { matches: [], hasMatch: false, matchDays: new Set() };
 
     const shoreAngle = spot.shore_angle ?? null;
     const nowMs = Date.now() + (spot.utcOffset ?? 0) * 1000;
@@ -75,7 +75,8 @@ export function useAlarmMatch(spot, rules, activeSport) {
       matches.push(pt);
     }
 
-    return { matches, hasMatch: matches.length > 0 };
+    // Dagen (YYYY-MM-DD, spotlokaal) met minstens één passend moment: de weekbalk markeert ze.
+    return { matches, hasMatch: matches.length > 0, matchDays: new Set(matches.map((p) => p.date)) };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot, rules, activeSport, tick]);
 }
