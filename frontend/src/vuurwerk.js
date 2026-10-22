@@ -7,7 +7,7 @@ const SLEUTEL = "vuurwerkInst";
 // elke: seconden, 0 = alleen bij het openen van de app.
 // duur: snelheidsfactor — 1 is de oorspronkelijke tijd, hoger is langzamer.
 // Op het wandscherm vanaf een paar meter afstand oogde de animatie te snel.
-const STANDAARD = { aan: true, elke: 60, duur: 1 };
+const STANDAARD = { aan: false, elke: 60, duur: 1 };
 
 function lees() {
   try {

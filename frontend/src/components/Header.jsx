@@ -174,7 +174,7 @@ function WindArrow({ deg = 0, size = 28 }) {
   );
 }
 
-export default function Header({ spot, spots, selectedId, onSelectId, unit, onUnitChange, loading = false, favorites = [], onToggleFavorite, webcamOpen = false, onWebcamToggle, rwsMapOpen = false, onRwsMapToggle, autoRotate = false, onAutoRotateToggle, canAutoRotate = false, isDark = false, onThemeToggle, sunrise, sunset, alarmMatch = false, onAlarmToggle, homeSpotId = "", onHomeSpot }) {
+export default function Header({ spot, spots, selectedId, onSelectId, unit, onUnitChange, loading = false, favorites = [], onToggleFavorite, webcamOpen = false, onWebcamToggle, rwsMapOpen = false, onRwsMapToggle, autoRotate = false, onAutoRotateToggle, canAutoRotate = false, isDark = false, onThemeToggle, sunrise, sunset, alarmMatch = false, onAlarmToggle, homeSpotId = "", onHomeSpot, kaartAan = true, onKaartToggle }) {
   const C = useTheme();
   const [time, setTime] = useState(new Date());
   const [tempMode, setTempMode] = useState("air"); // "air" | "water"
@@ -473,6 +473,7 @@ export default function Header({ spot, spots, selectedId, onSelectId, unit, onUn
         </button>
         <Instellingen
           spots={spots} homeSpotId={homeSpotId} onHomeSpot={onHomeSpot} onSelectSpot={onSelectId}
+          kaartAan={kaartAan} onKaartToggle={onKaartToggle}
           color={C.border} knopStijl={{ border: `2px solid ${C.border}`, borderRadius: 4, padding: "4px 8px" }}
         />
         </div>

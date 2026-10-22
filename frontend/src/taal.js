@@ -75,6 +75,7 @@ const NL = {
   "Every 15 seconds": "Elke 15 seconden", "Every 30 seconds": "Elke 30 seconden",
   "Every minute": "Elke minuut", "Every 5 minutes": "Elke 5 minuten",
   "Only when opening the app": "Alleen bij het openen van de app",
+  "Show map as background": "Kaart tonen als achtergrond",
   Preview: "Voorbeeld",
   "Set a sport under ALARM first — fireworks appear on the days it matches.":
     "Stel eerst een sport in onder ALARM — het vuurwerk verschijnt op de dagen die passen.",

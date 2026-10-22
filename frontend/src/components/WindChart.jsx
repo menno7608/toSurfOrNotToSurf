@@ -484,7 +484,7 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
             <LegItem color={LINE}     line="solid"  label={verledenLabel} />
             <LegItem color={GUST}     line="dashed" label={vertaal("Gust")} />
             <LegItem color={FORECAST} line="dotted" label={vertaal("Forecast")} />
-            <LegItem color={ORANGE}   line="dashed" label={vertaal("Now")} />
+            <LegItem color={ORANGE} dot label={vertaal("Now")} />
           </div>
         </div>
       ) : (
@@ -509,12 +509,15 @@ export default function WindChart({ past, live, forecast, unit = "kts", windDir 
             <LegItem color={LINE}      line="solid"  label={vertaal(meetbron ? "Measured wind" : "Past (model)")} />
             <LegItem color={GUST}      line="dashed" label={vertaal("Gust")} />
             <LegItem color={FORECAST}  line="dotted" label={vertaal("Forecast")} />
-            <LegItem color={ORANGE}    line="dashed" label={vertaal("Now")} />
+            <LegItem color={ORANGE} dot label={vertaal("Now")} />
           </div>
         </>
       )}
 
-      <WindDirectionBadge windDir={windDir} shoreAngle={shoreAngle} />
+      {/* Op de telefoon staat dit al bij DIRECTION in de infostrip boven de
+          grafiek (22-10, op verzoek) — hier nog eens tonen was dubbelop en
+          duwde de grafiek onnodig naar beneden. */}
+      {!compact && <WindDirectionBadge windDir={windDir} shoreAngle={shoreAngle} />}
 
       {/* Scrollbare grafiek met vaste Y-as */}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>

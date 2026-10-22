@@ -12,6 +12,7 @@ import ChartTabs from "./ChartTabs.jsx";
 import KaartAchtergrond from "./KaartAchtergrond.jsx";
 import Instellingen from "./Instellingen.jsx";
 import { currentStrength, CURRENT_BANDS } from "./SpotSidebar.jsx";
+import { getShoreType } from "./WindDirectionBadge.jsx";
 import { convertWind } from "./SpotInfo.jsx";
 import { fmtUpdatedAt } from "../time.js";
 import WEBCAMS from "../webcams.js";
@@ -260,10 +261,11 @@ export default function MobileLayout({
   isDark = false, onThemeToggle,
   waveUnit = "m", onWaveUnitToggle,
   alarmMatch = false, onAlarmToggle,
-  homeSpotId = "", onHomeSpot, matchDays,
+  homeSpotId = "", onHomeSpot, matchDays, kaartAan = true, onKaartToggle,
 }) {
   const C = useTheme();
   const l = spot?.live ?? {};
+  const shore = l.windDir != null && spot?.shore_angle != null ? getShoreType(l.windDir, spot.shore_angle) : null;
 
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -355,7 +357,7 @@ export default function MobileLayout({
       overscrollBehaviorY: "contain",
       WebkitOverflowScrolling: "touch",
     }}>
-      <KaartAchtergrond spot={spot} spots={spots} homeSpotId={homeSpotId} unit={unit} moment={kaartMoment} compact />
+      {kaartAan && <KaartAchtergrond spot={spot} spots={spots} homeSpotId={homeSpotId} unit={unit} moment={kaartMoment} compact />}
 
       {/* ── HEADER: spot + tijd + LIVE ── */}
       <div style={{
@@ -506,6 +508,10 @@ export default function MobileLayout({
           {
             label: "DIRECTION",
             value: l.windDir != null ? `${compassDir(l.windDir)} ${l.windDir}°` : "—",
+            // Stond eerst als los "W · SIDE-ON"-blokje in de grafiek (22-10, op
+            // verzoek verplaatst) — hoort hier bij de live windrichting.
+            sub: shore ? vertaal(shore.label) : undefined,
+            color: shore?.color,
           },
           {
             label: "WAVE Hs",
@@ -529,14 +535,16 @@ export default function MobileLayout({
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: C.border, lineHeight: 1 }}>
               {vertaal(label)}
             </span>
-            <span style={{ fontSize: "clamp(14px, 4vw, 20px)", fontWeight: 700, color: color ?? C.dark, lineHeight: 1.1 }}>
-              {value}
-            </span>
-            {sub && (
-              <span style={{ fontSize: 8, fontWeight: 700, color, letterSpacing: "0.04em", lineHeight: 1 }}>
-                {sub}
+            <span style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", rowGap: 1, columnGap: 5, minWidth: 0 }}>
+              <span style={{ fontSize: "clamp(14px, 4vw, 20px)", fontWeight: 700, color: color ?? C.dark, lineHeight: 1.1, flexShrink: 0 }}>
+                {value}
               </span>
-            )}
+              {sub && (
+                <span style={{ fontSize: 8, fontWeight: 700, color, letterSpacing: "0.04em", lineHeight: 1.3 }}>
+                  {sub}
+                </span>
+              )}
+            </span>
           </div>
         ))}
       </div>
@@ -595,13 +603,13 @@ export default function MobileLayout({
       {/* ── EENHEDEN + MODEL ── */}
       <div style={{
         borderTop: `1px solid ${C.border}44`,
-        padding: "6px 12px",
+        padding: "3px 12px",
         display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
         flexWrap: "wrap",
       }}>
         <div style={{ display: "flex", gap: 4, marginRight: "auto" }}>
           {UNITS.map((u) => (
-            <button key={u} onClick={() => onUnitChange(u)} style={{
+            <button key={u} className="knop-compact" onClick={() => onUnitChange(u)} style={{
               fontSize: 11, padding: "3px 8px", borderRadius: 3,
               border: `1px solid ${C.border}`,
               background: unit === u ? C.border : "transparent",
@@ -630,6 +638,7 @@ export default function MobileLayout({
           {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
         <button
+          className="knop-compact"
           onClick={() => onSaveSpotModel?.(spot?.id, weatherModel)}
           title={vertaal(spotModels[spot?.id] === weatherModel ? "Remove favourite model" : "Save as favourite model for this spot")}
           style={{ background: "none", border: "none", padding: "2px 4px", cursor: "pointer", lineHeight: 0, flexShrink: 0, order: 3 }}
@@ -637,6 +646,7 @@ export default function MobileLayout({
           <BreakingWaveIcon active={spotModels[spot?.id] === weatherModel} />
         </button>
         <button
+          className="knop-compact"
           onClick={() => onThemeToggle?.()}
           style={{
             fontSize: 10, padding: "3px 8px", borderRadius: 3, flexShrink: 0,
@@ -647,6 +657,7 @@ export default function MobileLayout({
           {vertaal(isDark ? "LIGHT" : "DARK")}
         </button>
         <button
+          className="knop-compact"
           onClick={() => zetTaal(huidigeTaal() === "nl" ? "en" : "nl")}
           title="Nederlands / English"
           style={{
@@ -658,6 +669,7 @@ export default function MobileLayout({
           {huidigeTaal() === "nl" ? "NL" : "EN"}
         </button>
         <button
+          className="knop-compact"
           onClick={() => onAlarmToggle?.()}
           style={{
             fontSize: 10, padding: "3px 8px", borderRadius: 3, flexShrink: 0,
@@ -671,7 +683,7 @@ export default function MobileLayout({
         >
           ≋ ALARM
         </button>
-        <Instellingen spots={spots} homeSpotId={homeSpotId} onHomeSpot={onHomeSpot} onSelectSpot={onSelectId} color={C.border} />
+        <Instellingen spots={spots} homeSpotId={homeSpotId} onHomeSpot={onHomeSpot} onSelectSpot={onSelectId} kaartAan={kaartAan} onKaartToggle={onKaartToggle} color={C.border} />
         <div style={{ flexBasis: "100%", height: 0, order: 1 }} />
       </div>
 

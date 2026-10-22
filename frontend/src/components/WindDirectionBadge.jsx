@@ -8,7 +8,7 @@ function toCompassShort(deg) {
   return COMPASS[Math.round(deg / 22.5) % 16];
 }
 
-function getShoreType(windDir, shoreAngle) {
+export function getShoreType(windDir, shoreAngle) {
   const diff = Math.abs(((windDir - shoreAngle + 180) % 360 + 360) % 360 - 180);
   if (diff <= 30)  return { label: "ON SHORE",   color: "#e74c3c" };
   if (diff <= 60)  return { label: "SIDE-ON",    color: "#e67e22" };

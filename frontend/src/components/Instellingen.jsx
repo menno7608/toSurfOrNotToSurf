@@ -16,7 +16,7 @@ function Tandwiel({ size = 16 }) {
   );
 }
 
-export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, onSelectSpot, color = CREAM, knopStijl = {} }) {
+export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, onSelectSpot, kaartAan = true, onKaartToggle, color = CREAM, knopStijl = {} }) {
   const [open, setOpen] = useState(false);
   const vw = useVuurwerk();
 
@@ -32,6 +32,7 @@ export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, 
     <>
       <button
         type="button"
+        className="knop-compact"
         onClick={() => setOpen(true)}
         aria-label={vertaal("Settings")}
         title={vertaal("Settings")}
@@ -83,6 +84,12 @@ export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, 
             <div style={{ fontSize: 12, opacity: 0.7, margin: "6px 0 20px", lineHeight: 1.5 }}>
               {vertaal("The app always opens on this spot and shows it with a house icon on the map.")}
             </div>
+
+            <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, lineHeight: 1.4, cursor: "pointer", marginBottom: 20 }}>
+              <input type="checkbox" checked={kaartAan} onChange={(e) => onKaartToggle?.(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: "#60b8e8", flexShrink: 0 }} />
+              {vertaal("Show map as background")}
+            </label>
 
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>{vertaal("Fireworks")}</div>
             <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, lineHeight: 1.4, cursor: "pointer" }}>

@@ -22,7 +22,7 @@ export default function ChartTabs({ spot, active, onChange, taalKnop = true }) {
 
   return (
     <div style={{
-      display: "flex", gap: 4, padding: "4px 8px",
+      display: "flex", alignItems: "center", gap: 4, padding: "3px 8px 2px",
       borderBottom: `1px solid ${C.border}44`,
       flexShrink: 0,
     }}>
@@ -31,11 +31,12 @@ export default function ChartTabs({ spot, active, onChange, taalKnop = true }) {
         return (
           <button
             key={t.id}
+            className="knop-compact"
             onClick={() => onChange(t.id)}
             style={{
-              fontSize: 9, fontWeight: 900, letterSpacing: "0.1em",
-              padding: "3px 10px", borderRadius: 3,
-              border: `1.5px solid ${isActive ? C.dark : C.border}`,
+              fontSize: 9, fontWeight: 900, letterSpacing: "0.1em", lineHeight: 1,
+              padding: "0 10px", borderRadius: 3,
+              border: `1px solid ${isActive ? C.dark : C.border}`,
               background: isActive ? C.dark : "transparent",
               color: isActive ? C.cream : C.border,
               cursor: "pointer", outline: "none",
@@ -48,11 +49,11 @@ export default function ChartTabs({ spot, active, onChange, taalKnop = true }) {
       })}
       {/* Rechts: terug naar nu (alle grafieken), en de taal. */}
       <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-        <button onClick={naarNu} title={vertaal("Back to now")} style={knop(C, true)}>
+        <button className="knop-compact" onClick={naarNu} title={vertaal("Back to now")} style={knop(C, true)}>
           {vertaal("NOW")}
         </button>
         {taalKnop && (
-          <button onClick={() => zetTaal(huidigeTaal() === "nl" ? "en" : "nl")} title="Nederlands / English" style={knop(C, false)}>
+          <button className="knop-compact" onClick={() => zetTaal(huidigeTaal() === "nl" ? "en" : "nl")} title="Nederlands / English" style={knop(C, false)}>
             {huidigeTaal() === "nl" ? "NL · en" : "EN · nl"}
           </button>
         )}
@@ -63,9 +64,9 @@ export default function ChartTabs({ spot, active, onChange, taalKnop = true }) {
 
 function knop(C, nadruk) {
   return {
-    fontSize: 9, fontWeight: 900, letterSpacing: "0.1em",
-    padding: "3px 10px", borderRadius: 3,
-    border: `1.5px solid ${nadruk ? C.orange : C.border}`,
+    fontSize: 9, fontWeight: 900, letterSpacing: "0.1em", lineHeight: 1,
+    padding: "0 10px", borderRadius: 3,
+    border: `1px solid ${nadruk ? C.orange : C.border}`,
     background: "transparent",
     color: nadruk ? C.orange : C.border,
     cursor: "pointer", outline: "none",

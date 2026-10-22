@@ -42,10 +42,11 @@ const HUIS_PAD = "M4 10.8 12 4l8 6.8V20h-5.2v-5.6H9.2V20H4Z";
 export default function KaartAchtergrond({ spot, spots = [], homeSpotId = "", unit = "kts", moment = null, compact = false }) {
   // Telefoon: alles kleiner, de pijlen liggen daar midden onder de grafiek.
   const sch = compact ? 0.6 : 1;
-  // Telefoon: spot 12% van de schermhoogte lager dan het midden. In het midden
-  // viel hij op de legenda en het kustlabel; iets lager ligt het lege bovenste
-  // deel van de windgrafiek (20-50 kts).
-  const omlaag = compact ? 0.12 : 0;
+  // Telefoon: spot net boven het midden, zodat hij in de lege bovenkant van
+  // de windgrafiek valt (40-50 kts) — daar komt zelden een lijn, nooit de
+  // meetlijn, de "nu"-stip of een kts-label. Precies op het midden viel hij
+  // op de meetlijn, hoger weer op de legenda en de kustrichting-badge.
+  const omlaag = compact ? -0.02 : 0;
   const theme = useTheme();
   const [ref, { w, h }] = useEigenAfmeting();
   const [kust, setKust] = useState(null);
@@ -124,15 +125,13 @@ export default function KaartAchtergrond({ spot, spots = [], homeSpotId = "", un
         delen.push(`<path transform="translate(${(xy[0] - 12 * k).toFixed(3)} ${(xy[1] - 12 * k).toFixed(3)}) scale(${k.toFixed(5)})" d="${HUIS_PAD}" `
           + `fill="none" stroke="${esc(theme.dark)}" stroke-opacity="0.85" stroke-width="${(1.4 / schaal / k).toFixed(3)}" stroke-linejoin="round"/>`);
       } else {
-        delen.push(`<circle cx="${xy[0].toFixed(2)}" cy="${xy[1].toFixed(2)}" r="${px(2.2)}" fill="${esc(theme.dark)}" fill-opacity="0.7"/>`);
+        delen.push(`<circle cx="${xy[0].toFixed(2)}" cy="${xy[1].toFixed(2)}" r="${px(compact ? 1.5 : 2.2)}" fill="${esc(compact ? theme.border : theme.dark)}" fill-opacity="${compact ? 0.4 : 0.7}"/>`);
       }
+      // Telefoon: alleen stipjes, geen namen — dat wordt te druk op een smal scherm.
+      if (compact) continue;
       const naam = andere.name ? esc(andere.name) : "";
       const breedte = (7 + naam.length * fs * 0.55) / schaal;
-      // Telefoon: alleen in het middengebied (de grafiek); daarboven en -onder
-      // staat tekst, daar blijft het bij stipjes.
-      const hoogte = (xy[1] - vy) / vh;
-      const vrij = (!compact || (hoogte > 0.3 && hoogte < 0.64))
-        && Math.hypot(xy[0], xy[1]) > rondSpot
+      const vrij = Math.hypot(xy[0], xy[1]) > rondSpot
         && xy[0] + breedte < vx + vw - 4 / schaal
         && bezet.every(([bx, by]) => Math.abs(bx - xy[0]) > 90 / schaal || Math.abs(by - xy[1]) > 16 / schaal);
       if (naam && vrij) {

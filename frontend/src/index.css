@@ -43,6 +43,16 @@ body.dark input {
     min-height: 44px;
   }
 
+  /* Secundaire knoppen (grafiektabs, eenheden, thema/taal/alarm, instellingen-
+     tandwiel): mis-tikken wisselt alleen een weergave of opent een paneel,
+     geen onomkeerbare actie. Op verzoek van Menno (22-10) bewust dunner dan
+     de 44px-regel hierboven, om de grafiek meer ruimte te geven — minder
+     vergevingsgezind met natte vingers, maar dat weegt hier niet op tegen
+     hoe dik al die rijen bij elkaar oogden. */
+  .knop-compact {
+    min-height: 26px;
+  }
+
   /* 2. Formuliervelden op minstens 16px. Dit is geen smaakkwestie maar een
         harde iOS-regel: Safari zoomt de héle pagina in zodra je een veld met
         een kleinere letter aantikt, en zoomt daarna niet terug — je zit vast in

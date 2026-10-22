@@ -73,6 +73,15 @@ export default function App({ forceMobile = false }) {
     try { return localStorage.getItem("homeSpotId") || localStorage.getItem("selectedId") || ""; }
     catch { return ""; }
   });
+  // Kaart als achtergrond: sommigen vinden het scherm er druk van worden.
+  const [kaartAan, setKaartAan] = useState(() => {
+    try { return localStorage.getItem("kaartAchtergrond") !== "0"; }
+    catch { return true; }
+  });
+  const toggleKaart = (aan) => {
+    setKaartAan(aan);
+    try { localStorage.setItem("kaartAchtergrond", aan ? "1" : "0"); } catch {}
+  };
   const [error, setError] = useState("");
   // Taalwissel: de hele app opnieuw tekenen, alle teksten lopen via taal.js.
   useTaal();
@@ -361,6 +370,8 @@ export default function App({ forceMobile = false }) {
           homeSpotId={homeSpotId}
           onHomeSpot={kiesThuisspot}
           matchDays={matchDays}
+          kaartAan={kaartAan}
+          onKaartToggle={toggleKaart}
         />
         {alarmOpen && (
           <AlarmPanel
@@ -379,7 +390,7 @@ export default function App({ forceMobile = false }) {
   return (
     <ThemeCtx.Provider value={theme}>
       {staleText && <StaleBar text={staleText} color={warming ? "#c8892a" : "#c0392b"} />}
-      <KaartAchtergrond spot={spot} spots={sortedSpots} homeSpotId={homeSpotId} unit={unit} moment={kaartMoment} />
+      {kaartAan && <KaartAchtergrond spot={spot} spots={sortedSpots} homeSpotId={homeSpotId} unit={unit} moment={kaartMoment} />}
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Header
           spot={spot}
@@ -406,6 +417,8 @@ export default function App({ forceMobile = false }) {
           onAlarmToggle={() => setAlarmOpen((v) => !v)}
           homeSpotId={homeSpotId}
           onHomeSpot={kiesThuisspot}
+          kaartAan={kaartAan}
+          onKaartToggle={toggleKaart}
         />
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           <SpotSidebar onOnderHoogte={setOnderHoogte} spot={spot} unit={unit} waveUnit={waveUnit} onWaveUnitToggle={toggleWaveUnit} weatherModel={weatherModel} onModelChange={setWeatherModel} spotModels={spotModels} onSaveSpotModel={saveSpotModel} />
