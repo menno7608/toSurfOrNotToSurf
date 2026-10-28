@@ -36,7 +36,13 @@ public class WindWidget extends AppWidgetProvider {
         final Context app = context.getApplicationContext();
         new Thread(() -> {
             try {
-                for (int id : ids) ververs(app, manager, id);
+                for (int id : ids) {
+                    try {
+                        ververs(app, manager, id);
+                    } catch (Throwable t) {
+                        toonFout(app, manager, id, t);
+                    }
+                }
             } finally {
                 klaar.finish();
             }
@@ -48,6 +54,20 @@ public class WindWidget extends AppWidgetProvider {
         SharedPreferences.Editor e = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         for (int id : ids) e.remove("spot" + id).remove("grafiek" + id);
         e.apply();
+    }
+
+    /** Een fout in de widget laten we zien in plaats van de app te laten crashen. */
+    static void toonFout(Context c, AppWidgetManager manager, int widgetId, Throwable t) {
+        try {
+            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
+            v.setTextViewText(R.id.naam, "Fout in widget");
+            v.setTextViewText(R.id.wind, "–");
+            String m = String.valueOf(t.getMessage());
+            v.setTextViewText(R.id.vlagen, t.getClass().getSimpleName() + ": " + (m.length() > 90 ? m.substring(0, 90) : m));
+            v.setTextViewText(R.id.oordeel, "");
+            manager.updateAppWidget(widgetId, v);
+        } catch (Throwable ignored) {
+        }
     }
 
     /** Haalt de wind op en tekent één widget. Niet op de hoofdthread aanroepen. */
@@ -88,7 +108,7 @@ public class WindWidget extends AppWidgetProvider {
         dienst.setData(Uri.parse(dienst.toUri(Intent.URI_INTENT_SCHEME)));
         v.setRemoteAdapter(R.id.lijst, dienst);
         v.setPendingIntentTemplate(R.id.lijst, PendingIntent.getActivity(c, widgetId,
-                new Intent(Intent.ACTION_VIEW), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+                new Intent(c, OpenActivity.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         manager.updateAppWidget(widgetId, v);
         manager.notifyAppWidgetViewDataChanged(widgetId, R.id.lijst);
     }

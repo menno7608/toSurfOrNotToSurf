@@ -54,7 +54,7 @@ public class GrafiekService extends RemoteViewsService {
                     titels.add(Grafiek.naam(soort));
                     beelden.add(Grafiek.teken(c, d, soort));
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 titels.clear();
                 beelden.clear();
             }

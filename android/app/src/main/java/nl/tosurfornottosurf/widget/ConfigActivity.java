@@ -80,7 +80,11 @@ public class ConfigActivity extends Activity {
         final AppWidgetManager m = AppWidgetManager.getInstance(this);
         final android.content.Context app = getApplicationContext();
         new Thread(() -> {
-            WindWidget.ververs(app, m, widgetId);
+            try {
+                WindWidget.ververs(app, m, widgetId);
+            } catch (Throwable t) {
+                WindWidget.toonFout(app, m, widgetId, t);
+            }
             Intent r = new Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
             setResult(RESULT_OK, r);
             finish();
