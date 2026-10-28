@@ -8,3 +8,4 @@ numpy==2.4.4
 cfgrib==0.9.15.1
 xarray==2026.2.0
 scipy==1.17.1
+Pillow==13.0.0
