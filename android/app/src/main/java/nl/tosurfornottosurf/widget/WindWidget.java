@@ -16,9 +16,9 @@ import org.json.JSONObject;
 public class WindWidget extends AppWidgetProvider {
     static final String PREFS = "widget";
     static final String ACTION_SCROLL = "nl.tosurfornottosurf.widget.SCROLL";
-    static final int PADDING_DP = 14;
-    /** Hoogte van de kop (52dp) plus een beetje lucht. */
-    static final int KOP_DP = 58;
+    static final int PADDING_DP = 10;
+    /** Hoogte van de kop (40dp) plus een beetje lucht. */
+    static final int KOP_DP = 44;
 
     static String spotVan(Context c, int widgetId) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("spot" + widgetId, "");
@@ -66,7 +66,7 @@ public class WindWidget extends AppWidgetProvider {
         if (ACTION_SCROLL.equals(intent.getAction())) {
             int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return;
-            int nieuw = Math.max(0, Math.min(Grafiek.MAX_OFFSET, offsetVan(context, id) + intent.getIntExtra("delta", 0)));
+            int nieuw = Math.max(Grafiek.MIN_OFFSET, Math.min(Grafiek.MAX_OFFSET, offsetVan(context, id) + intent.getIntExtra("delta", 0)));
             bewaarOffset(context, id, nieuw);
             AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(id, R.id.lijst);
             return;

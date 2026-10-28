@@ -1300,7 +1300,7 @@ def _widget_reeksen(cached, meta, dagen=7):
     Tijden zijn lokale 'YYYY-MM-DDTHH:MM' (zoals date+t in /api/spots). Het
     venster loopt van 12 uur terug tot `dagen` vooruit; alles in knopen."""
     nu = cached.get("liveAt") or datetime.now().strftime("%Y-%m-%dT%H:%M")
-    vanaf = (datetime.fromisoformat(nu) - timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M")
+    vanaf = (datetime.fromisoformat(nu) - timedelta(hours=48)).strftime("%Y-%m-%dT%H:%M")
     tot = (datetime.fromisoformat(nu) + timedelta(days=dagen)).strftime("%Y-%m-%dT%H:%M")
 
     def sleutel(p):

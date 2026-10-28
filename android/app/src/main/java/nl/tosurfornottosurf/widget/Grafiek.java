@@ -23,9 +23,10 @@ final class Grafiek {
 
     static final int UREN = 24;          // zichtbaar venster
     static final int STAP = 12;          // uren per tik
-    static final int MAX_OFFSET = 6 * 24; // verste start vanaf nu
+    static final int MIN_OFFSET = -36;   // verste stap het verleden in
+    static final int MAX_OFFSET = 132;   // verste stap de toekomst in
 
-    private static final int LINKS = 50, RECHTS = 12, BOVEN = 44, UURLABELS = 26, STROOK = 64;
+    private static final int LINKS = 44, RECHTS = 10, BOVEN = 22, UURLABELS = 22, STROOK = 42;
     private static int TEKST, RASTER, LIJN, VOORSPELLING, VLAAG, ACCENT, BAND;
 
     private Grafiek() {}
@@ -89,7 +90,7 @@ final class Grafiek {
         long nu = epoch(d.getString("nowAt"));
 
         // Venster: UREN uur vanaf nu + offset, binnen de data.
-        long ws = nu + offsetUren * 3600L;
+        long ws = nu - (UREN / 2) * 3600L + offsetUren * 3600L; // nu staat in het midden
         ws = Math.max(x0, Math.min(ws, x1 - UREN * 3600L));
         long we = ws + UREN * 3600L;
 
@@ -108,19 +109,6 @@ final class Grafiek {
 
         RectF vlak = new RectF(LINKS, BOVEN, B - RECHTS, H - STROOK - UURLABELS);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        // Titel en bereik.
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(ctx.getColor(R.color.tekst));
-        p.setTextSize(26);
-        p.setFakeBoldText(true);
-        p.setTextAlign(Paint.Align.LEFT);
-        c.drawText(naam(soort), LINKS, 28, p);
-        p.setFakeBoldText(false);
-        p.setTextSize(20);
-        p.setColor(TEKST);
-        p.setTextAlign(Paint.Align.RIGHT);
-        c.drawText(dag(ws) + " " + uur(ws) + " – " + dag(we) + " " + uur(we), B - RECHTS, 28, p);
 
         // Horizontale rasterlijnen.
         p.setTextSize(20);
@@ -187,18 +175,32 @@ final class Grafiek {
             }
         }
 
-        // Nu-markering, als hij in beeld is.
+        // Titel klein in de hoek van de plot, zodat de kop vrij blijft.
+        p.setStyle(Paint.Style.FILL); p.setColor((ctx.getColor(R.color.tekst) & 0x00FFFFFF) | 0xCC000000);
+        p.setTextSize(20); p.setFakeBoldText(true); p.setTextAlign(Paint.Align.LEFT);
+        c.drawText(naam(soort), vlak.left + 8, vlak.top + 20, p);
+        p.setFakeBoldText(false);
+
+        // Nu: een fijne stippellijn en een oranje punt op de lijn zelf.
         if (nu >= ws && nu <= we) {
-            p.setStyle(Paint.Style.STROKE); p.setColor(ACCENT); p.setStrokeWidth(2);
-            p.setPathEffect(new DashPathEffect(new float[]{8, 6}, 0));
+            p.setStyle(Paint.Style.STROKE); p.setColor((ACCENT & 0x00FFFFFF) | 0x88000000); p.setStrokeWidth(1.5f);
+            p.setPathEffect(new DashPathEffect(new float[]{6, 6}, 0));
             c.drawLine(nuX, vlak.top, nuX, vlak.bottom, p);
             p.setPathEffect(null);
+            double wn = waardeOp(x, y, nu);
+            if (!Double.isNaN(wn)) {
+                float py = yPos(wn, lo, hi, vlak);
+                p.setStyle(Paint.Style.FILL); p.setColor(ctx.getColor(R.color.bg_a4));
+                c.drawCircle(nuX, py, 10, p);
+                p.setColor(ACCENT);
+                c.drawCircle(nuX, py, 7, p);
+            }
         }
 
         // Tikzones: een subtiel pijltje links en rechts, als er die kant op nog iets is.
         p.setStyle(Paint.Style.FILL); p.setTextSize(40); p.setTextAlign(Paint.Align.CENTER);
         p.setColor((TEKST & 0x00FFFFFF) | 0x66000000);
-        if (ws > Math.max(x0, nu)) c.drawText("‹", vlak.left + 14, (vlak.top + vlak.bottom) / 2 + 12, p);
+        if (ws > x0) c.drawText("‹", vlak.left + 14, (vlak.top + vlak.bottom) / 2 + 12, p);
         if (we < x1) c.drawText("›", vlak.right - 14, (vlak.top + vlak.bottom) / 2 + 12, p);
 
         strook(c, p, x, y, x0, x1, ws, we, nu, soort, B, H, vlak);
@@ -208,13 +210,13 @@ final class Grafiek {
     /** De hele week in het klein, met het zichtbare venster gemarkeerd. */
     private static void strook(Canvas c, Paint p, long[] x, double[] y, long x0, long x1, long ws, long we, long nu,
                                String soort, int B, int H, RectF vlak) {
-        RectF s = new RectF(vlak.left, H - STROOK + 8, vlak.right, H - 24);
+        RectF s = new RectF(vlak.left, H - STROOK + 4, vlak.right, H - 17);
         double lo = 0, hi = 0;
         for (double v : y) if (!Double.isNaN(v)) { hi = Math.max(hi, v); lo = Math.min(lo, v); }
         if (hi - lo < 1e-6) hi = lo + 1;
 
         // Dagen: lichte scheidingslijn en label.
-        p.setTextSize(18); p.setTextAlign(Paint.Align.CENTER);
+        p.setTextSize(16); p.setTextAlign(Paint.Align.CENTER);
         long dag = 86400;
         for (long m = ((x0 / dag) + 1) * dag; m < x1; m += dag) {
             float px = xPos(m, x0, x1, s);
@@ -225,7 +227,7 @@ final class Grafiek {
         for (long m = (x0 / dag) * dag; m < x1; m += dag) {
             long a = Math.max(m, x0), b = Math.min(m + dag, x1);
             if (b - a < 8 * 3600) continue;
-            c.drawText(dag(m), xPos(a + (b - a) / 2, x0, x1, s), H - 6, p);
+            c.drawText(dag(m), xPos(a + (b - a) / 2, x0, x1, s), H - 3, p);
         }
 
         // Het zichtbare venster, zacht gemarkeerd.
@@ -279,6 +281,18 @@ final class Grafiek {
         p.setPathEffect(streep ? new DashPathEffect(new float[]{8, 6}, 0) : null);
         c.drawPath(pad, p);
         p.setPathEffect(null);
+    }
+
+    /** Lineair geïnterpoleerde waarde op tijdstip t. */
+    private static double waardeOp(long[] x, double[] y, long t) {
+        for (int i = 1; i < x.length; i++) {
+            if (x[i] >= t && x[i - 1] <= t) {
+                if (Double.isNaN(y[i]) || Double.isNaN(y[i - 1])) return Double.NaN;
+                double f = x[i] == x[i - 1] ? 0 : (double) (t - x[i - 1]) / (x[i] - x[i - 1]);
+                return y[i - 1] + (y[i] - y[i - 1]) * f;
+            }
+        }
+        return Double.NaN;
     }
 
     private static String uur(long t) {

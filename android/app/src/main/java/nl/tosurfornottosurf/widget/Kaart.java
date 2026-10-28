@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 final class Kaart {
     /** Breedte van het beeld in km. */
     private static final double KM_BREED = 150;
-    private static final float SPOT_X = 0.78f, SPOT_Y = 0.26f;
+    private static final float SPOT_X = 0.80f, SPOT_Y = 0.16f;
 
     private Kaart() {}
 
@@ -67,21 +67,27 @@ final class Kaart {
             JSONArray la = k.optJSONArray("land");
             if (la != null) for (int i = 0; i < la.length(); i++) ring(land, la.getJSONArray(i), lat, lon, kosinus, km, ox, oy, true);
             p.setStyle(Paint.Style.FILL);
-            p.setColor((c.getColor(R.color.tekst) & 0x00FFFFFF) | 0x1A000000);
+            p.setColor((c.getColor(R.color.tekst) & 0x00FFFFFF) | 0x12000000);
             cv.drawPath(land, p);
 
             Path lijn = new Path();
             JSONArray ku = k.optJSONArray("kust");
             if (ku != null) for (int i = 0; i < ku.length(); i++) ring(lijn, ku.getJSONArray(i), lat, lon, kosinus, km, ox, oy, false);
             p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(2f);
+            p.setStrokeWidth(1.5f);
             p.setStrokeJoin(Paint.Join.ROUND);
             p.setStrokeCap(Paint.Cap.ROUND);
-            p.setColor((c.getColor(R.color.lijn) & 0x00FFFFFF) | 0x99000000);
+            p.setColor((c.getColor(R.color.lijn) & 0x00FFFFFF) | 0x66000000);
             cv.drawPath(lijn, p);
 
+            // Onder de kop wordt het decor stiller, zodat de grafieklijnen leesbaar blijven.
+            Paint f = new Paint();
+            f.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+            f.setShader(new LinearGradient(0, H * 0.22f, 0, H * 0.45f, Color.argb(0, 0, 0, 0), Color.argb(170, 0, 0, 0), Shader.TileMode.CLAMP));
+            cv.drawRect(0, H * 0.22f, B, H, f);
+
             // Pijlen wijzen naar de spot toe, zoals in de app: de wind gaat de kant op van richting+180.
-            float s = B / 640f;
+            float s = B / 640f * 0.75f;
             if (windKn != null && windDir != null) {
                 pijl(cv, p, (float) ox, (float) oy, (windDir + 180) % 360,
                         (float) ((34 + Math.min(windKn, 35) * 1.4) * s), c.getColor(R.color.accent),

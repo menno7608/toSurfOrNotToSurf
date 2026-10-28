@@ -46,7 +46,7 @@ public class GrafiekService extends RemoteViewsService {
             float lijstB = m[0] - 2 * WindWidget.PADDING_DP;
             float lijstH = m[1] - 2 * WindWidget.PADDING_DP - WindWidget.KOP_DP;
             int h = Math.round(B * lijstH / lijstB);
-            return Math.max(260, Math.min(h, 900));
+            return Math.max(150, Math.min(h, 900));
         }
 
         /** Draait op een achtergrondthread: hier mag het netwerk. */
