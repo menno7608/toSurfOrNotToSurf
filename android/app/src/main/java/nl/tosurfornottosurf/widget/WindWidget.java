@@ -48,6 +48,15 @@ public class WindWidget extends AppWidgetProvider {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("thema" + widgetId, thema).apply();
     }
 
+    /** "licht" of "donker": de keuze van deze widget, of anders het thema van de telefoon. */
+    static String themaNaam(Context c, int widgetId) {
+        String t = themaVan(c, widgetId);
+        if (t.equals("licht") || t.equals("donker")) return t;
+        boolean nacht = (c.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        return nacht ? "donker" : "licht";
+    }
+
     /** Een Context met het thema van deze widget, zodat getColor() licht of donker geeft. */
     static Context thema(Context c, int widgetId) {
         String t = themaVan(c, widgetId);
@@ -201,15 +210,16 @@ public class WindWidget extends AppWidgetProvider {
                     + (tijd.isEmpty() ? "" : ", gemeten om " + tijd));
             if (!d.isNull("url")) url = d.optString("url");
 
+            // De achtergrond (kust, pijlen, zachte rand) tekent de server.
             float[] m = maat(c, widgetId);
             int bw = 540;
             int bh = Math.max(240, Math.min(Math.round(bw * m[1] / m[0]), 1100));
-            Bitmap kaart = Kaart.teken(t, spot, d.optDouble("lat", 0), d.optDouble("lon", 0), bw, bh, m[0],
-                    d.isNull("windKn") ? null : d.getDouble("windKn"),
-                    d.isNull("dir") ? null : d.getInt("dir"),
-                    d.isNull("stroomKn") ? null : d.getDouble("stroomKn"),
-                    d.isNull("stroomDir") ? null : d.getInt("stroomDir"));
-            if (kaart != null) v.setImageViewBitmap(R.id.kaart, kaart);
+            try {
+                v.setImageViewBitmap(R.id.kaart, Api.haalBeeld("/api/widget-beeld?spot=" + Uri.encode(spot) + "&soort=kaart&thema="
+                        + themaNaam(c, widgetId) + "&w=" + bw + "&h=" + bh + "&dp=" + Math.round(m[0])));
+            } catch (Exception e) {
+                // Zonder achtergrond werkt de widget gewoon verder.
+            }
         } catch (Exception e) {
             v.setTextViewText(R.id.naam, spot.isEmpty() ? "Kies een spot" : "Geen data");
             v.setTextViewText(R.id.wind, "–");

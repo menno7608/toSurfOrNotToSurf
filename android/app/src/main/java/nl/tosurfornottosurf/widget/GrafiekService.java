@@ -29,9 +29,6 @@ public class GrafiekService extends RemoteViewsService {
         private final int widgetId;
         private final List<Bitmap> beelden = new ArrayList<>();
         private final List<String> soorten = new ArrayList<>();
-        private JSONObject data;
-        private String dataSpot = "";
-        private long dataTijd = 0;
         private String url = Api.BASIS + "/mobile/";
 
         Fabriek(Context c, int widgetId) {
@@ -59,26 +56,30 @@ public class GrafiekService extends RemoteViewsService {
             if (spot.isEmpty()) return;
             url = Api.BASIS + "/mobile/?spot=" + Uri.encode(spot);
             try {
-                long nu = System.currentTimeMillis();
-                if (data == null || !spot.equals(dataSpot) || nu - dataTijd > 5 * 60 * 1000) {
-                    data = new JSONObject(Api.haal("/api/widget-grafiek?spot=" + Uri.encode(spot)));
-                    dataSpot = spot;
-                    dataTijd = nu;
-                }
+                JSONObject d = new JSONObject(Api.haal("/api/widget?spot=" + Uri.encode(spot)));
+                org.json.JSONArray ok = d.optJSONArray("grafieken");
                 String standaard = WindWidget.standaardGrafiek(c, widgetId);
                 List<String> volgorde = new ArrayList<>();
                 volgorde.add(standaard);
                 for (String s : Grafiek.SOORTEN) if (!s.equals(standaard)) volgorde.add(s);
                 int offset = WindWidget.offsetVan(c, widgetId);
                 int h = hoogte();
+                String thema = WindWidget.themaNaam(c, widgetId);
                 for (String soort : volgorde) {
-                    if (!Grafiek.heeft(data, soort)) continue;
+                    if (ok != null && !bevat(ok, soort)) continue;
+                    // De server tekent de grafiek; hier wordt alleen de afbeelding getoond.
+                    beelden.add(Api.haalBeeld("/api/widget-beeld?spot=" + Uri.encode(spot) + "&soort=" + soort
+                            + "&thema=" + thema + "&offset=" + offset + "&w=" + B + "&h=" + h));
                     soorten.add(soort);
-                    beelden.add(Grafiek.teken(WindWidget.thema(c, widgetId), data, soort, offset, B, h));
                 }
             } catch (Throwable e) {
                 beelden.clear();
             }
+        }
+
+        private static boolean bevat(org.json.JSONArray a, String s) {
+            for (int i = 0; i < a.length(); i++) if (s.equals(a.optString(i))) return true;
+            return false;
         }
 
         @Override public void onDestroy() { beelden.clear(); }

@@ -3,10 +3,11 @@
 from flask import Flask, jsonify, render_template, request, send_from_directory, redirect
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading, os, math, json
+import threading, os, math, json, time
 import requests as req
 import knmi_harmonie as harmonie
 import leren
+import widgetbeeld
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 import webwacht
@@ -1371,18 +1372,14 @@ def get_widget_grafiek():
     return resp
 
 
-@app.route("/api/widget")
-def get_widget():
-    """Klein antwoord voor een homescreen-widget (Scriptable, KWGT): één spot,
-    alleen wat een widget toont. Leest uit dezelfde cache als /api/spots en
-    start zelf geen verversing."""
-    spot_id = request.args.get("spot", "")
+def _widget_dict(spot_id):
+    """Samenvatting van één spot voor de widget: (dict, None) of (None, (foutdict, status))."""
     meta = next((m for m in SPOTS_META if m["id"] == spot_id), None)
     if meta is None:
-        return jsonify({"error": "onbekende spot"}), 404
+        return None, ({"error": "onbekende spot"}, 404)
     cached, _ = _cache_get((spot_id, "best_match"), allow_stale=True)
     if cached is None:
-        return jsonify({"error": "nog geen data"}), 503
+        return None, ({"error": "nog geen data"}, 503)
     try:
         cached = _apply_buienradar(cached, meta)
     except Exception:
@@ -1393,20 +1390,8 @@ def get_widget():
     def kn(v):
         return round(v * _MS_NAAR_KN) if v is not None else None
 
-    if request.args.get("format") == "text":
-        # Eén regel voor widget-apps die geen JSON ontleden (KWGT: $wg(url, txt)$).
-        pijl = "" if richting is None else "↓↙←↖↑↗→↘"[round(richting / 45) % 8]
-        oordeel = _widget_oordeel(ms, meta)
-        regel = f"{meta['name']}: {kn(ms) if ms is not None else '–'} kn {pijl}".rstrip()
-        if gust is not None:
-            regel += f" (vlagen {kn(gust)})"
-        if oordeel:
-            regel += f" · {oordeel.upper()}"
-        resp = app.response_class(regel, mimetype="text/plain")
-        resp.headers["Cache-Control"] = "public, max-age=60"
-        return resp
-
-    resp = jsonify({
+    reeksen = _widget_reeksen(cached, meta)
+    return {
         "id": spot_id,
         "name": meta["name"],
         "lat": meta["lat"],
@@ -1420,9 +1405,84 @@ def get_widget():
         "oordeel": _widget_oordeel(ms, meta),
         "reden": _widget_reden(ms, meta),
         "updatedAt": cached.get("liveAt") or cached.get("updatedAt"),
+        "grafieken": [z for z in widgetbeeld.SOORTEN if widgetbeeld.heeft(reeksen, z)],
         "url": f"https://tosurfornottosurf.nl/mobile/?spot={spot_id}",
-    })
+    }, None, reeksen
+
+
+@app.route("/api/widget")
+def get_widget():
+    """Klein antwoord voor een homescreen-widget (Scriptable, de Android-app): één spot,
+    alleen wat een widget toont. Leest uit dezelfde cache als /api/spots."""
+    res = _widget_dict(request.args.get("spot", ""))
+    if res[0] is None:
+        fout, status = res[1]
+        return jsonify(fout), status
+    d = res[0]
+    if request.args.get("format") == "text":
+        # Eén regel voor widget-apps die geen JSON ontleden (KWGT: $wg(url, txt)$).
+        pijl = "" if d["dir"] is None else "↓↙←↖↑↗→↘"[round(d["dir"] / 45) % 8]
+        regel = f"{d['name']}: {d['windKn'] if d['windKn'] is not None else '–'} kn {pijl}".rstrip()
+        if d["gustKn"] is not None:
+            regel += f" (vlagen {d['gustKn']})"
+        if d["oordeel"]:
+            regel += f" · {d['oordeel'].upper()}"
+        resp = app.response_class(regel, mimetype="text/plain")
+    else:
+        resp = jsonify(d)
     resp.headers["Cache-Control"] = "public, max-age=60"
+    return resp
+
+
+_beeld_cache = {}          # (parameters) -> (tijdstip, png-bytes)
+_BEELD_TTL = 300           # seconden
+_BEELD_MAX = 256
+
+
+@app.route("/api/widget-beeld")
+def get_widget_beeld():
+    """De widget als PNG, getekend op de server (zie widgetbeeld.py). Android en iPhone tonen
+    deze afbeelding; zo komt een ontwerpverbetering zonder installatie bij iedereen.
+
+    soort: kaart | volledig | wind | regen | golven | getij | stroom. thema: licht | donker.
+    offset: uren dat het venster t.o.v. 'nu in het midden' is verschoven."""
+    if not widgetbeeld.beschikbaar():
+        return jsonify({"error": "Pillow ontbreekt op de server"}), 503
+    spot_id = request.args.get("spot", "")
+    soort = request.args.get("soort", "volledig")
+    if soort not in ("kaart", "volledig") + widgetbeeld.SOORTEN:
+        return jsonify({"error": "onbekende soort"}), 400
+    thema = "donker" if request.args.get("thema") == "donker" else "licht"
+    grafiek = request.args.get("grafiek", "wind")   # alleen voor soort=volledig
+    try:
+        offset = max(-36, min(132, int(request.args.get("offset", 0))))
+        breedte = max(200, min(1100, int(request.args.get("w", 640))))
+        hoogte = max(100, min(1400, int(request.args.get("h", 300))))
+        dp = max(100.0, min(800.0, float(request.args.get("dp", 270))))
+    except ValueError:
+        return jsonify({"error": "ongeldige parameter"}), 400
+
+    res = _widget_dict(spot_id)
+    if res[0] is None:
+        fout, status = res[1]
+        return jsonify(fout), status
+    w, _, reeksen = res
+    if soort in widgetbeeld.SOORTEN and not widgetbeeld.heeft(reeksen, soort):
+        return jsonify({"error": "geen data voor deze grafiek"}), 404
+
+    sleutel = (spot_id, soort, grafiek, thema, offset, breedte, hoogte, round(dp), reeksen["nowAt"], w["windKn"], w["oordeel"])
+    nu = time.time()
+    hit = _beeld_cache.get(sleutel)
+    if hit and nu - hit[0] < _BEELD_TTL:
+        png = hit[1]
+    else:
+        png = widgetbeeld.maak_png(soort, thema, breedte, hoogte, w, reeksen, offset, dp, grafiek)
+        if len(_beeld_cache) >= _BEELD_MAX:
+            for oud in sorted(_beeld_cache, key=lambda k: _beeld_cache[k][0])[:_BEELD_MAX // 4]:
+                _beeld_cache.pop(oud, None)
+        _beeld_cache[sleutel] = (nu, png)
+    resp = app.response_class(png, mimetype="image/png")
+    resp.headers["Cache-Control"] = "public, max-age=120"
     return resp
 
 

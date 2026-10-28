@@ -1,6 +1,8 @@
 """Widget-endpoint (/api/widget): klein antwoord per spot voor homescreen-widgets."""
 from datetime import datetime, timezone
 
+import pytest
+
 from conftest import TMP  # noqa: F401  (zet de testomgeving op)
 
 
@@ -110,3 +112,31 @@ def test_widget_reden_bij_geen_go(client, mod):
     assert client.get("/api/widget?spot=ameland").get_json()["reden"] == "iets te veel wind"
     _zaai(mod, "ameland", 10.0)
     assert client.get("/api/widget?spot=ameland").get_json()["reden"] is None
+
+
+def test_widget_geeft_beschikbare_grafieken(client, mod):
+    _live_leeg(mod)
+    _zaai(mod, "ameland", 8.0)
+    d = client.get("/api/widget?spot=ameland").get_json()
+    assert "grafieken" in d and isinstance(d["grafieken"], list)
+
+
+def test_widget_beeld_geeft_png(client, mod):
+    pytest.importorskip("PIL")
+    _live_leeg(mod)
+    nu = datetime.now().strftime("%Y-%m-%d")
+    ts = datetime.now(timezone.utc)
+    punten = [{"date": nu, "t": f"{u:02d}:00", "v": 5.0 + u / 4, "g": 8.0 + u / 4, "dir": 200 + u, "rain": 0.0} for u in range(0, 24)]
+    with mod._lock:
+        mod._cache[("ameland", "best_match")] = ({
+            "id": "ameland", "liveAt": f"{nu}T12:00", "utcOffset": 0,
+            "live": {"windSpeed": 7.0, "windGust": 9.0, "windDir": 210},
+            "windPast": [], "windLive": [], "windForecast": punten, "marine": [],
+        }, ts)
+    for soort in ("kaart", "volledig", "wind", "regen"):
+        r = client.get(f"/api/widget-beeld?spot=ameland&soort={soort}&thema=donker&w=640&h=300")
+        assert r.status_code == 200 and r.mimetype == "image/png", soort
+        assert r.data[:8] == b"\x89PNG\r\n\x1a\n"
+    assert client.get("/api/widget-beeld?spot=ameland&soort=golven").status_code == 404
+    assert client.get("/api/widget-beeld?spot=ameland&soort=onzin").status_code == 400
+    assert client.get("/api/widget-beeld?spot=bestaat-niet").status_code == 404
