@@ -6,13 +6,19 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Bundle;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
 
 public class WindWidget extends AppWidgetProvider {
     static final String PREFS = "widget";
+    static final String ACTION_SCROLL = "nl.tosurfornottosurf.widget.SCROLL";
+    static final int PADDING_DP = 14;
+    /** Hoogte van de kop (52dp) plus een beetje lucht. */
+    static final int KOP_DP = 58;
 
     static String spotVan(Context c, int widgetId) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("spot" + widgetId, "");
@@ -28,6 +34,44 @@ public class WindWidget extends AppWidgetProvider {
 
     static void bewaarGrafiek(Context c, int widgetId, String soort) {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("grafiek" + widgetId, soort).apply();
+    }
+
+    /** Uren dat het venster vanaf nu naar voren is geschoven. */
+    static int offsetVan(Context c, int widgetId) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("offset" + widgetId, 0);
+    }
+
+    static void bewaarOffset(Context c, int widgetId, int uren) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("offset" + widgetId, uren).apply();
+    }
+
+    /** Breedte en hoogte van de widget in dp. */
+    static float[] maat(Context c, int widgetId) {
+        float w = 250, h = 160;
+        try {
+            Bundle o = AppWidgetManager.getInstance(c).getAppWidgetOptions(widgetId);
+            if (o != null) {
+                int ow = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+                int oh = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+                if (ow > 0) w = ow;
+                if (oh > 0) h = oh;
+            }
+        } catch (Throwable ignored) {
+        }
+        return new float[]{w, h};
+    }
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (ACTION_SCROLL.equals(intent.getAction())) {
+            int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+            if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return;
+            int nieuw = Math.max(0, Math.min(Grafiek.MAX_OFFSET, offsetVan(context, id) + intent.getIntExtra("delta", 0)));
+            bewaarOffset(context, id, nieuw);
+            AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(id, R.id.lijst);
+            return;
+        }
+        super.onReceive(context, intent);
     }
 
     @Override
@@ -49,10 +93,23 @@ public class WindWidget extends AppWidgetProvider {
         }).start();
     }
 
+    /** Bij het vergroten of verkleinen: kaart en grafieken opnieuw op maat. */
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int id, Bundle opts) {
+        final Context app = context.getApplicationContext();
+        new Thread(() -> {
+            try {
+                ververs(app, manager, id);
+            } catch (Throwable t) {
+                toonFout(app, manager, id, t);
+            }
+        }).start();
+    }
+
     @Override
     public void onDeleted(Context context, int[] ids) {
         SharedPreferences.Editor e = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
-        for (int id : ids) e.remove("spot" + id).remove("grafiek" + id);
+        for (int id : ids) e.remove("spot" + id).remove("grafiek" + id).remove("offset" + id);
         e.apply();
     }
 
@@ -85,11 +142,19 @@ public class WindWidget extends AppWidgetProvider {
             if (!d.isNull("shore")) vlagen += (vlagen.isEmpty() ? "" : " · ") + d.optString("shore").toLowerCase();
             v.setTextViewText(R.id.vlagen, vlagen);
             String oordeel = d.isNull("oordeel") ? "" : d.optString("oordeel");
-            v.setTextViewText(R.id.oordeel, oordeel.isEmpty() ? "geen oordeel" : oordeel.toUpperCase());
+            v.setTextViewText(R.id.oordeel, oordeel.isEmpty() ? "" : oordeel.toUpperCase());
             v.setTextColor(R.id.oordeel, kleur(c, oordeel));
             if (!d.isNull("url")) url = d.optString("url");
+
             if (!d.isNull("lat") && !d.isNull("lon")) {
-                android.graphics.Bitmap kaart = Kaart.teken(c, spot, d.getDouble("lat"), d.getDouble("lon"));
+                float[] m = maat(c, widgetId);
+                int bw = 540;
+                int bh = Math.max(240, Math.min(Math.round(bw * m[1] / m[0]), 1100));
+                Bitmap kaart = Kaart.teken(c, spot, d.getDouble("lat"), d.getDouble("lon"), bw, bh,
+                        d.isNull("windKn") ? null : d.getDouble("windKn"),
+                        d.isNull("dir") ? null : d.getInt("dir"),
+                        d.isNull("stroomKn") ? null : d.getDouble("stroomKn"),
+                        d.isNull("stroomDir") ? null : d.getInt("stroomDir"));
                 if (kaart != null) v.setImageViewBitmap(R.id.kaart, kaart);
             }
         } catch (Exception e) {
@@ -102,13 +167,15 @@ public class WindWidget extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.kop,
                 PendingIntent.getActivity(c, widgetId, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
 
-        // De scrolbare lijst met grafieken; een tik op een grafiek opent de app op deze spot.
+        // De lijst met grafieken, één per pagina. Een tik links of rechts op een grafiek schuift het
+        // venster een halve dag; dat gaat via een broadcast naar deze widget (expliciete intent).
         Intent dienst = new Intent(c, GrafiekService.class);
         dienst.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
         dienst.setData(Uri.parse(dienst.toUri(Intent.URI_INTENT_SCHEME)));
         v.setRemoteAdapter(R.id.lijst, dienst);
-        v.setPendingIntentTemplate(R.id.lijst, PendingIntent.getActivity(c, widgetId,
-                new Intent(c, OpenActivity.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        Intent scroll = new Intent(c, WindWidget.class).setAction(ACTION_SCROLL);
+        v.setPendingIntentTemplate(R.id.lijst, PendingIntent.getBroadcast(c, widgetId, scroll,
+                PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         manager.updateAppWidget(widgetId, v);
         manager.notifyAppWidgetViewDataChanged(widgetId, R.id.lijst);
     }

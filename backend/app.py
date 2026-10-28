@@ -1403,6 +1403,8 @@ def get_widget():
         "lon": meta["lon"],
         "windKn": kn(ms),
         "gustKn": kn(gust),
+        "stroomKn": live.get("currentSpeed"),
+        "stroomDir": live.get("currentDirection"),
         "dir": richting,
         "shore": _aflandigheid(richting, meta.get("shore_angle")),
         "oordeel": _widget_oordeel(ms, meta),
