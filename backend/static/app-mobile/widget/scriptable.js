@@ -1,66 +1,36 @@
-// toSurfOrNotToSurf — homescreen-widget voor Scriptable (iPhone).
-// Installeren: kopieer dit script via Instellingen → Widget in de app, plak het
-// in een nieuw Scriptable-script, voeg een Scriptable-widget toe aan je
-// beginscherm en kies dit script. Een andere spot? Zet het spot-id in het
-// veld "Parameter" van de widget.
-const SPOT = args.widgetParameter || "__SPOT__";
-const API = "https://tosurfornottosurf.nl/api/widget?spot=" + encodeURIComponent(SPOT);
+// toSurfOrNotToSurf — widget voor Scriptable (iPhone).
+// De server tekent de widget; dit script toont alleen die afbeelding. Verbeteringen aan het
+// ontwerp komen dus vanzelf binnen, zonder dat je dit script opnieuw hoeft te plakken.
+//
+// Instellen via het veld "Parameter" van de widget (lang indrukken > Widget aanpassen):
+//   spot|grafiek|thema        bijvoorbeeld   scheveningen|golven|donker
+//   grafiek: wind, regen, golven, getij, stroom (standaard wind)
+//   thema:   licht of donker (standaard: volgt je telefoon)
+// Tip: zet meerdere widgets met een andere grafiek op elkaar in een widgetstapel
+// en veeg er verticaal doorheen.
+const DELEN = (args.widgetParameter || "").split("|").map((s) => s.trim());
+const SPOT = DELEN[0] || "__SPOT__";
+const GRAFIEK = DELEN[1] || "wind";
+const THEMA = DELEN[2] || (Device.isUsingDarkAppearance() ? "donker" : "licht");
+const BASIS = "https://tosurfornottosurf.nl";
 
-const KLEUR = { go: "#2ecc71", bijna: "#f5a623", nee: "#8a96a3" };
-const TEKST = { go: "GO", bijna: "BIJNA", nee: "NEE" };
+const maten = { small: [420, 420], medium: [720, 340], large: [720, 780], extraLarge: [1100, 520] };
+const [B, H] = maten[config.widgetFamily] || maten.medium;
+const url = `${BASIS}/api/widget-beeld?spot=${encodeURIComponent(SPOT)}&soort=volledig&grafiek=${encodeURIComponent(GRAFIEK)}`
+  + `&thema=${THEMA}&w=${B}&h=${H}&dp=${config.widgetFamily === "small" ? 155 : 329}`;
 
-async function haal() {
-  try {
-    const r = new Request(API);
-    r.timeoutInterval = 15;
-    return await r.loadJSON();
-  } catch (e) {
-    return null;
-  }
-}
-
-function pijl(graden) {
-  if (graden == null) return "";
-  const pijlen = ["↓", "↙", "←", "↖", "↑", "↗", "→", "↘"]; // wind KOMT uit graden
-  return pijlen[Math.round(graden / 45) % 8];
-}
-
-const d = await haal();
 const w = new ListWidget();
-w.backgroundColor = new Color("#1a2635");
-w.setPadding(14, 14, 14, 14);
-
-if (!d || d.error) {
-  const t = w.addText("Geen data");
-  t.textColor = Color.white();
-  t.font = Font.boldSystemFont(16);
-  w.url = "https://tosurfornottosurf.nl/mobile/";
-} else {
-  const naam = w.addText(d.name);
-  naam.textColor = Color.white();
-  naam.font = Font.semiboldSystemFont(14);
-  naam.lineLimit = 1;
-
-  w.addSpacer(6);
-  const wind = w.addText((d.windKn ?? "–") + " kn " + pijl(d.dir));
-  wind.textColor = Color.white();
-  wind.font = Font.boldSystemFont(30);
-  wind.minimumScaleFactor = 0.6;
-
-  const vlaag = w.addText("vlagen " + (d.gustKn ?? "–") + (d.shore ? " · " + d.shore.toLowerCase() : ""));
-  vlaag.textColor = new Color("#c0c9d2");
-  vlaag.font = Font.systemFont(11);
-  vlaag.lineLimit = 1;
-
-  w.addSpacer();
-  const o = d.oordeel;
-  const label = w.addText(o ? TEKST[o] : "geen oordeel");
-  label.textColor = new Color(o ? KLEUR[o] : "#8a96a3");
-  label.font = Font.heavySystemFont(16);
-  w.url = d.url;
-}
-
+w.url = `${BASIS}/mobile/?spot=${encodeURIComponent(SPOT)}`;
 w.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
+try {
+  const r = new Request(url);
+  r.timeoutInterval = 20;
+  w.backgroundImage = await r.loadImage();
+} catch (e) {
+  w.backgroundColor = new Color(THEMA === "donker" ? "#1a2635" : "#f0ebe0");
+  const t = w.addText("Geen data");
+  t.textColor = new Color(THEMA === "donker" ? "#c8c0b0" : "#2d3f4a");
+}
 if (config.runsInWidget) Script.setWidget(w);
-else await w.presentSmall();
+else await w.presentMedium();
 Script.complete();
