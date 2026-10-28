@@ -57,3 +57,19 @@ def test_aflandigheid_komt_overeen_met_de_frontend(mod):
     assert mod._aflandigheid(170, 350) == "OFF SHORE"
     assert mod._aflandigheid(80, 350) == "SIDE SHORE"
     assert mod._aflandigheid(None, 350) is None
+
+
+def test_widget_tekstvariant_is_een_regel(client, mod):
+    _live_leeg(mod)
+    _zaai(mod, "ameland", 10.0, 13.0, 350)
+    r = client.get("/api/widget?spot=ameland&format=text")
+    assert r.status_code == 200 and r.mimetype == "text/plain"
+    assert r.get_data(as_text=True) == "Ameland: 19 kn ↓ (vlagen 25) · GO"
+
+
+def test_widget_spotlijst(client, mod):
+    r = client.get("/api/widget-spots")
+    d = r.get_json()
+    assert r.status_code == 200 and len(d) == len(mod.SPOTS_META)
+    assert set(d[0]) == {"id", "name"}
+    assert [s["name"].lower() for s in d] == sorted(s["name"].lower() for s in d)

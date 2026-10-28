@@ -47,11 +47,15 @@ const NL = {
     "De app opent altijd op deze spot en toont hem met een huisje op de kaart.",
   "Phone widget": "Telefoonwidget",
   "Choose a home spot first — the widget shows that spot.": "Kies eerst een thuisspot — de widget toont die spot.",
-  "iPhone: install the free Scriptable app, copy the script, paste it into a new script and add a Scriptable widget to your home screen.":
-    "iPhone: installeer de gratis app Scriptable, kopieer het script, plak het in een nieuw script en zet een Scriptable-widget op je beginscherm.",
-  "Android: use a widget app such as KWGT and point it at this address.":
-    "Android: gebruik een widget-app zoals KWGT en wijs die naar dit adres.",
-  "Copy iPhone script": "Kopieer iPhone-script", "Copy widget address": "Kopieer widget-adres",
+  "Install the free Scriptable app, copy the script, paste it into a new script and add a Scriptable widget to your home screen.":
+    "Installeer de gratis app Scriptable, kopieer het script, plak het in een nieuw script en zet een Scriptable-widget op je beginscherm.",
+  "Install KWGT Kustom Widget Maker and its Pro key from the Play Store.":
+    "Installeer KWGT Kustom Widget Maker en de Pro-sleutel uit de Play Store.",
+  "Long-press your home screen, add a KWGT widget and tap it to edit.":
+    "Houd je beginscherm ingedrukt, voeg een KWGT-widget toe en tik erop om te bewerken.",
+  "Add a text item, choose a formula and paste the one you copy here.":
+    "Voeg een tekstitem toe, kies een formule en plak degene die je hier kopieert.",
+  "Copy KWGT formula": "Kopieer KWGT-formule", "Copy iPhone script": "Kopieer iPhone-script",
   Copied: "Gekopieerd", "Copy failed": "Kopiëren lukte niet",
   "Idea or bug?": "Idee of foutje?",
   "What would you like to see, or what isn't working well?": "Wat zou je willen zien, of wat werkt niet goed?",

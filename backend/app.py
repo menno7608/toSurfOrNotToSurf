@@ -1285,6 +1285,15 @@ def _widget_oordeel(wind_ms, meta):
     return "nee"
 
 
+@app.route("/api/widget-spots")
+def get_widget_spots():
+    """Lijst van spots (id, naam) voor de keuze in de Android-widget."""
+    resp = jsonify(sorted(({"id": m["id"], "name": m["name"]} for m in SPOTS_META),
+                          key=lambda s: s["name"].lower()))
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
 @app.route("/api/widget")
 def get_widget():
     """Klein antwoord voor een homescreen-widget (Scriptable, KWGT): één spot,
@@ -1306,6 +1315,19 @@ def get_widget():
 
     def kn(v):
         return round(v * _MS_NAAR_KN) if v is not None else None
+
+    if request.args.get("format") == "text":
+        # Eén regel voor widget-apps die geen JSON ontleden (KWGT: $wg(url, txt)$).
+        pijl = "" if richting is None else "↓↙←↖↑↗→↘"[round(richting / 45) % 8]
+        oordeel = _widget_oordeel(ms, meta)
+        regel = f"{meta['name']}: {kn(ms) if ms is not None else '–'} kn {pijl}".rstrip()
+        if gust is not None:
+            regel += f" (vlagen {kn(gust)})"
+        if oordeel:
+            regel += f" · {oordeel.upper()}"
+        resp = app.response_class(regel, mimetype="text/plain")
+        resp.headers["Cache-Control"] = "public, max-age=60"
+        return resp
 
     resp = jsonify({
         "id": spot_id,
