@@ -24,6 +24,8 @@ public class MainActivity extends Activity {
     private TextView status;
     private Button update;
     private long nieuwste = 0;
+    /** Waar we op wachten terwijl de gebruiker in de Android-instellingen de toestemming geeft. */
+    private boolean wachtOpToestemming = false;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -61,6 +63,20 @@ public class MainActivity extends Activity {
         zoekUpdate();
     }
 
+    /** Terug uit de Android-instellingen: is de toestemming gegeven, dan gaat de update door. */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (wachtOpToestemming) {
+            wachtOpToestemming = false;
+            if (Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls()) {
+                installeer();
+            } else {
+                status.setText("Zonder toestemming kan de update niet starten. Tik nogmaals op Update installeren om het opnieuw te proberen.");
+            }
+        }
+    }
+
     private long eigenVersie() {
         try {
             return getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode();
@@ -95,7 +111,8 @@ public class MainActivity extends Activity {
     /** Haalt de nieuwe APK op en installeert hem over de huidige heen. */
     private void installeer() {
         if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-            status.setText("Sta eerst toe dat deze app updates installeert, en tik daarna opnieuw op Update installeren.");
+            status.setText("Zet in het volgende scherm 'Toestaan' aan en druk op de terugknop: de update start dan vanzelf.");
+            wachtOpToestemming = true;
             startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
             return;
         }
