@@ -24,48 +24,15 @@
         <LinearLayout
             android:id="@+id/kop"
             android:layout_width="match_parent"
-            android:layout_height="46dp"
+            android:layout_height="48dp"
             android:orientation="vertical">
 
+            <!-- Bovenste rij: het oordeel precies in het midden (gelijke kolommen links en rechts). -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/naam"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="130dp"
-                    android:text="…"
-                    android:textColor="@color/tekst"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tandwiel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="4dp"
-                    android:text="⚙"
-                    android:textColor="@color/tekst_zwak"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/nu"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:text="⟲ nu"
-                    android:textColor="@color/accent"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
 
                 <ImageView
                     android:layout_width="0dp"
@@ -80,12 +47,44 @@
                     android:textColor="#1A2635"
                     android:textSize="12sp"
                     android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/nu"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:text="⟲ nu"
+                        android:textColor="@color/accent"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tandwiel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="2dp"
+                        android:text="⚙"
+                        android:textColor="@color/tekst_zwak"
+                        android:textSize="14sp" />
+                </LinearLayout>
             </LinearLayout>
 
+            <!-- Onderste rij: de wind groot, met de spot en de details ernaast. -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="bottom"
+                android:layout_marginTop="1dp"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <TextView
@@ -95,20 +94,36 @@
                     android:maxLines="1"
                     android:text="–"
                     android:textColor="@color/tekst"
-                    android:textSize="20sp"
+                    android:textSize="22sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/vlagen"
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_marginBottom="3dp"
+                    android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:textColor="@color/tekst_zwak"
-                    android:textSize="10sp" />
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/naam"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:text="…"
+                        android:textColor="@color/tekst"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/vlagen"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/tekst_zwak"
+                        android:textSize="10sp" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 

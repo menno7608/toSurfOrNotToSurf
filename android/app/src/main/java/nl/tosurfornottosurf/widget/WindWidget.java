@@ -20,8 +20,8 @@ public class WindWidget extends AppWidgetProvider {
     static final String ACTION_SCROLL = "nl.tosurfornottosurf.widget.SCROLL";
     static final int PADDING_H_DP = 20;
     static final int PADDING_V_DP = 12;
-    /** Hoogte van de kop (46dp) plus een beetje lucht. */
-    static final int KOP_DP = 50;
+    /** Hoogte van de kop (48dp) plus een beetje lucht. */
+    static final int KOP_DP = 52;
 
     static String spotVan(Context c, int widgetId) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("spot" + widgetId, "");
