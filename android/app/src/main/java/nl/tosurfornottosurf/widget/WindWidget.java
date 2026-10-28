@@ -16,7 +16,8 @@ import org.json.JSONObject;
 public class WindWidget extends AppWidgetProvider {
     static final String PREFS = "widget";
     static final String ACTION_SCROLL = "nl.tosurfornottosurf.widget.SCROLL";
-    static final int PADDING_DP = 10;
+    static final int PADDING_H_DP = 20;
+    static final int PADDING_V_DP = 12;
     /** Hoogte van de kop (40dp) plus een beetje lucht. */
     static final int KOP_DP = 44;
 

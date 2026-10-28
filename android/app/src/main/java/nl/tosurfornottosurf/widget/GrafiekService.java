@@ -43,8 +43,8 @@ public class GrafiekService extends RemoteViewsService {
         /** Hoogte van één grafiek in bitmap-pixels, zodat hij precies de lijst vult. */
         private int hoogte() {
             float[] m = WindWidget.maat(c, widgetId);
-            float lijstB = m[0] - 2 * WindWidget.PADDING_DP;
-            float lijstH = m[1] - 2 * WindWidget.PADDING_DP - WindWidget.KOP_DP;
+            float lijstB = m[0] - 2 * WindWidget.PADDING_H_DP;
+            float lijstH = m[1] - 2 * WindWidget.PADDING_V_DP - WindWidget.KOP_DP;
             int h = Math.round(B * lijstH / lijstB);
             return Math.max(150, Math.min(h, 900));
         }
