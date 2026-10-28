@@ -179,12 +179,16 @@ public class WindWidget extends AppWidgetProvider {
             if (!tijd.isEmpty()) regel.append(tijd);
             if (!d.isNull("gustKn")) regel.append(regel.length() > 0 ? " · " : "").append("vlagen ").append(d.optInt("gustKn"));
             // Bij 'nee' of 'bijna' is de reden belangrijker dan de aflandigheid.
-            String staart = !reden.isEmpty() ? reden : (d.isNull("shore") ? "" : d.optString("shore").toLowerCase());
+            String staart = !reden.isEmpty() && !oordeel.equals("nee") ? reden : (d.isNull("shore") ? "" : d.optString("shore").toLowerCase());
             if (!staart.isEmpty()) regel.append(regel.length() > 0 ? " · " : "").append(staart);
             v.setTextViewText(R.id.vlagen, regel.toString());
 
             // Oordeel als gekleurd label.
-            v.setTextViewText(R.id.oordeel, oordeel.isEmpty() ? "" : oordeel.toUpperCase());
+            // Het label zegt zelf wat er aan de hand is: GOED, BIJNA, of de reden (TE WEINIG WIND).
+            String pil = oordeel.equals("go") ? "GOED"
+                    : oordeel.equals("nee") && !reden.isEmpty() ? reden.toUpperCase()
+                    : oordeel.isEmpty() ? "" : oordeel.toUpperCase();
+            v.setTextViewText(R.id.oordeel, pil);
             v.setInt(R.id.oordeel, "setBackgroundResource",
                     oordeel.equals("go") ? R.drawable.pil_go : oordeel.equals("bijna") ? R.drawable.pil_bijna
                             : oordeel.isEmpty() ? 0 : R.drawable.pil_nee);

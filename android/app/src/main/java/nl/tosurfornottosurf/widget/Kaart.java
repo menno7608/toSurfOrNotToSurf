@@ -114,12 +114,12 @@ final class Kaart {
         if (windKn != null && windDir != null) {
             pijl(cv, p, (float) ox, (float) oy, (windDir + 180) % 360,
                     (float) ((34 + Math.min(windKn, 35) * 1.4) * s), c.getColor(R.color.accent),
-                    c.getColor(R.color.tekst), "", s);
+                    c.getColor(R.color.tekst), "wind", s);
         }
         if (stroomKn != null && stroomDir != null && stroomKn > 0) {
             pijl(cv, p, (float) ox, (float) oy, stroomDir,
                     (float) ((26 + Math.min(stroomKn, 3) * 22) * s), c.getColor(R.color.voorspelling),
-                    c.getColor(R.color.tekst), String.format(java.util.Locale.US, "%.1f kn", stroomKn), s);
+                    c.getColor(R.color.tekst), "stroom", s);
         }
 
         // De spot zelf: ring met stip.

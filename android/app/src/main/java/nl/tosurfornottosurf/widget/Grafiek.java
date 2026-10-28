@@ -181,7 +181,7 @@ final class Grafiek {
 
         // Titel met eenheid, klein in de hoek van de plot; een rand in de achtergrondkleur houdt hem leesbaar.
         String eenheid = soort.equals("regen") ? "mm" : soort.equals("golven") || soort.equals("getij") ? "m" : "kn";
-        String titel = naam(soort) + " · " + eenheid;
+        String titel = naam(soort) + " · " + eenheid + " · 24 uur";
         p.setTextSize(20); p.setFakeBoldText(true); p.setTextAlign(Paint.Align.LEFT);
         p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(ctx.getColor(R.color.bg_a4));
         c.drawText(titel, vlak.left + 8, vlak.top + 20, p);

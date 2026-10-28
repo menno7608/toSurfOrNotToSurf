@@ -106,5 +106,7 @@ def test_widget_reden_bij_geen_go(client, mod):
     assert d["oordeel"] == "nee" and d["reden"] == "te weinig wind"
     _zaai(mod, "ameland", 25.0)
     assert client.get("/api/widget?spot=ameland").get_json()["reden"] == "te veel wind"
+    _zaai(mod, "ameland", 15.5)
+    assert client.get("/api/widget?spot=ameland").get_json()["reden"] == "iets te veel wind"
     _zaai(mod, "ameland", 10.0)
     assert client.get("/api/widget?spot=ameland").get_json()["reden"] is None

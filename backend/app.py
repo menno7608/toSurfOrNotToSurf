@@ -1270,11 +1270,13 @@ def _aflandigheid(wind_dir, shore_angle):
 
 
 def _widget_reden(wind_ms, meta):
-    """Korte reden bij een oordeel dat geen 'go' is, of None."""
+    """Korte reden bij een oordeel dat geen 'go' is, of None. 'iets' als het er net naast zit."""
     lo, hi = meta.get("min_wind"), meta.get("max_wind")
     if wind_ms is None or lo is None or hi is None or lo <= wind_ms <= hi:
         return None
-    return "te weinig wind" if wind_ms < lo else "te veel wind"
+    net_naast = lo - 2 <= wind_ms <= hi + 2
+    tekst = "te weinig wind" if wind_ms < lo else "te veel wind"
+    return ("iets " + tekst) if net_naast else tekst
 
 
 def _widget_oordeel(wind_ms, meta):
