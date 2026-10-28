@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.net.Uri;
 import android.widget.RemoteViews;
 
@@ -21,6 +20,14 @@ public class WindWidget extends AppWidgetProvider {
 
     static void bewaarSpot(Context c, int widgetId, String spotId) {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("spot" + widgetId, spotId).apply();
+    }
+
+    static String standaardGrafiek(Context c, int widgetId) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("grafiek" + widgetId, "wind");
+    }
+
+    static void bewaarGrafiek(Context c, int widgetId, String soort) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("grafiek" + widgetId, soort).apply();
     }
 
     @Override
@@ -39,7 +46,7 @@ public class WindWidget extends AppWidgetProvider {
     @Override
     public void onDeleted(Context context, int[] ids) {
         SharedPreferences.Editor e = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
-        for (int id : ids) e.remove("spot" + id);
+        for (int id : ids) e.remove("spot" + id).remove("grafiek" + id);
         e.apply();
     }
 
@@ -59,8 +66,12 @@ public class WindWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.vlagen, vlagen);
             String oordeel = d.isNull("oordeel") ? "" : d.optString("oordeel");
             v.setTextViewText(R.id.oordeel, oordeel.isEmpty() ? "geen oordeel" : oordeel.toUpperCase());
-            v.setTextColor(R.id.oordeel, kleur(oordeel));
+            v.setTextColor(R.id.oordeel, kleur(c, oordeel));
             if (!d.isNull("url")) url = d.optString("url");
+            if (!d.isNull("lat") && !d.isNull("lon")) {
+                android.graphics.Bitmap kaart = Kaart.teken(c, spot, d.getDouble("lat"), d.getDouble("lon"));
+                if (kaart != null) v.setImageViewBitmap(R.id.kaart, kaart);
+            }
         } catch (Exception e) {
             v.setTextViewText(R.id.naam, spot.isEmpty() ? "Kies een spot" : "Geen data");
             v.setTextViewText(R.id.wind, "–");
@@ -68,16 +79,25 @@ public class WindWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.oordeel, "");
         }
         Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        v.setOnClickPendingIntent(R.id.wortel,
+        v.setOnClickPendingIntent(R.id.kop,
                 PendingIntent.getActivity(c, widgetId, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+
+        // De scrolbare lijst met grafieken; een tik op een grafiek opent de app op deze spot.
+        Intent dienst = new Intent(c, GrafiekService.class);
+        dienst.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
+        dienst.setData(Uri.parse(dienst.toUri(Intent.URI_INTENT_SCHEME)));
+        v.setRemoteAdapter(R.id.lijst, dienst);
+        v.setPendingIntentTemplate(R.id.lijst, PendingIntent.getActivity(c, widgetId,
+                new Intent(Intent.ACTION_VIEW), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         manager.updateAppWidget(widgetId, v);
+        manager.notifyAppWidgetViewDataChanged(widgetId, R.id.lijst);
     }
 
-    private static int kleur(String oordeel) {
+    private static int kleur(Context c, String oordeel) {
         switch (oordeel) {
-            case "go": return Color.parseColor("#2ECC71");
-            case "bijna": return Color.parseColor("#F5A623");
-            default: return Color.parseColor("#8A96A3");
+            case "go": return c.getColor(R.color.go);
+            case "bijna": return c.getColor(R.color.bijna);
+            default: return c.getColor(R.color.nee);
         }
     }
 

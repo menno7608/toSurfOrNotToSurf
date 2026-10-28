@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Palet van de app (frontend/src/theme.js), licht. -->
+<resources>
+    <color name="bg_a1">#1FF0EBE0</color>
+    <color name="bg_a2">#47F0EBE0</color>
+    <color name="bg_a3">#85F0EBE0</color>
+    <color name="bg_a4">#D9F0EBE0</color>
+    <color name="tekst">#2D3F4A</color>
+    <color name="tekst_zwak">#5C6F7B</color>
+    <color name="raster">#337A9DB0</color>
+    <color name="lijn">#7A9DB0</color>
+    <color name="voorspelling">#3D7FA8</color>
+    <color name="vlaag">#C07A3A</color>
+    <color name="accent">#E07B3A</color>
+    <color name="go">#1F9D55</color>
+    <color name="bijna">#C77700</color>
+    <color name="nee">#7A8791</color>
+    <color name="band">#262E9D55</color>
+</resources>

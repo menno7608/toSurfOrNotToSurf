@@ -4,48 +4,80 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_achtergrond"
-    android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="18dp">
 
-    <TextView
-        android:id="@+id/naam"
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/kaart"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+    <LinearLayout
+        android:id="@+id/kop"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="…"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/wind"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="–"
-        android:textColor="#FFFFFF"
-        android:textSize="28sp"
-        android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/vlagen"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="#C0C9D2"
-        android:textSize="11sp" />
+            <TextView
+                android:id="@+id/naam"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="…"
+                android:textColor="@color/tekst"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/oordeel"
+            <TextView
+                android:id="@+id/wind"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="–"
+                android:textColor="@color/tekst"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/vlagen"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/tekst_zwak"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/oordeel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/nee"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+    </FrameLayout>
+
+    <ListView
+        android:id="@+id/lijst"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:layout_marginTop="6dp"
-        android:textColor="#8A96A3"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="0dp" />
 </LinearLayout>

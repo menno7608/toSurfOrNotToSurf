@@ -1294,6 +1294,73 @@ def get_widget_spots():
     return resp
 
 
+def _widget_reeksen(cached, meta, dagen=7):
+    """Tijdreeksen voor de grafieken in de widget, zelfde bronnen als de app.
+
+    Tijden zijn lokale 'YYYY-MM-DDTHH:MM' (zoals date+t in /api/spots). Het
+    venster loopt van 12 uur terug tot `dagen` vooruit; alles in knopen."""
+    nu = cached.get("liveAt") or datetime.now().strftime("%Y-%m-%dT%H:%M")
+    vanaf = (datetime.fromisoformat(nu) - timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M")
+    tot = (datetime.fromisoformat(nu) + timedelta(days=dagen)).strftime("%Y-%m-%dT%H:%M")
+
+    def sleutel(p):
+        return f"{p['date']}T{p['t']}"
+
+    def binnen(ts):
+        return vanaf <= ts <= tot
+
+    def kn(v):
+        return round(v * _MS_NAAR_KN, 1) if v is not None else None
+
+    wind = {}
+    for p in (cached.get("windPast") or []) + (cached.get("windLive") or []) + (cached.get("windForecast") or []):
+        ts = sleutel(p)
+        if binnen(ts):
+            wind[ts] = {"t": ts, "kn": kn(p.get("v")), "gust": kn(p.get("g")), "dir": p.get("dir"),
+                        "mm": p.get("rain")}
+    wind = [wind[k] for k in sorted(wind)]
+
+    waves, tide, stroom = [], [], []
+    for p in cached.get("marine") or []:
+        ts = sleutel(p)
+        if not binnen(ts):
+            continue
+        if p.get("hs") is not None:
+            waves.append({"t": ts, "hs": p["hs"], "tp": p.get("tp")})
+        if p.get("tide") is not None:
+            tide.append({"t": ts, "m": p["tide"]})
+        if p.get("currentSpeed") is not None:
+            stroom.append({"t": ts, "kn": p["currentSpeed"]})
+
+    lo, hi = meta.get("min_wind"), meta.get("max_wind")
+    return {
+        "id": meta["id"], "name": meta["name"], "nowAt": nu,
+        "minKn": kn(lo), "maxKn": kn(hi),
+        "wind": wind, "regen": [{"t": w["t"], "mm": w["mm"] or 0} for w in wind],
+        "golven": waves, "getij": tide, "stroom": stroom,
+    }
+
+
+@app.route("/api/widget-grafiek")
+def get_widget_grafiek():
+    """Tijdreeksen (wind, regen, golven, getij, stroming) voor één spot, voor
+    de grafieken in de Android-widget. Leest uit dezelfde cache als /api/spots."""
+    spot_id = request.args.get("spot", "")
+    meta = next((m for m in SPOTS_META if m["id"] == spot_id), None)
+    if meta is None:
+        return jsonify({"error": "onbekende spot"}), 404
+    cached, _ = _cache_get((spot_id, "best_match"), allow_stale=True)
+    if cached is None:
+        return jsonify({"error": "nog geen data"}), 503
+    try:
+        cached = _apply_buienradar(cached, meta)
+    except Exception:
+        pass
+    resp = jsonify(_widget_reeksen(cached, meta))
+    resp.headers["Cache-Control"] = "public, max-age=300"
+    return resp
+
+
 @app.route("/api/widget")
 def get_widget():
     """Klein antwoord voor een homescreen-widget (Scriptable, KWGT): één spot,
@@ -1332,6 +1399,8 @@ def get_widget():
     resp = jsonify({
         "id": spot_id,
         "name": meta["name"],
+        "lat": meta["lat"],
+        "lon": meta["lon"],
         "windKn": kn(ms),
         "gustKn": kn(gust),
         "dir": richting,

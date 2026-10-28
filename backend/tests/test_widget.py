@@ -26,6 +26,7 @@ def test_widget_geeft_kleine_respons_in_knopen(client, mod):
     assert d["windKn"] == 19 and d["gustKn"] == 25 and d["dir"] == 350
     assert d["oordeel"] == "go"  # 10 m/s zit in 6-14 m/s
     assert d["url"].endswith("/mobile/?spot=ameland")
+    assert d["lat"] == 53.447 and d["lon"] == 5.673
     assert len(r.data) < 1024
     assert r.headers["Cache-Control"] == "public, max-age=60"
 
@@ -73,3 +74,26 @@ def test_widget_spotlijst(client, mod):
     assert r.status_code == 200 and len(d) == len(mod.SPOTS_META)
     assert set(d[0]) == {"id", "name"}
     assert [s["name"].lower() for s in d] == sorted(s["name"].lower() for s in d)
+
+
+def test_widget_grafiek_reeksen(client, mod):
+    _live_leeg(mod)
+    ts = datetime.now(timezone.utc)
+    nu = datetime.now().strftime("%Y-%m-%d")
+    with mod._lock:
+        mod._cache[("ameland", "best_match")] = ({
+            "id": "ameland", "liveAt": f"{nu}T12:00", "utcOffset": 0,
+            "live": {"windSpeed": 5.0, "windGust": 8.0, "windDir": 200},
+            "windPast": [], "windLive": [],
+            "windForecast": [{"date": nu, "t": "13:00", "v": 10.0, "g": 12.0, "dir": 250, "rain": 0.4},
+                             {"date": nu, "t": "14:00", "v": 6.0, "g": None, "dir": 260, "rain": 0.0}],
+            "marine": [{"date": nu, "t": "15:00", "hs": 1.2, "tp": 6.0, "tide": 0.3, "currentSpeed": 0.5}],
+        }, ts)
+    d = client.get("/api/widget-grafiek?spot=ameland").get_json()
+    assert d["nowAt"] == f"{nu}T12:00"
+    assert d["wind"][0] == {"t": f"{nu}T13:00", "kn": 19.4, "gust": 23.3, "dir": 250, "mm": 0.4}
+    assert d["regen"][0]["mm"] == 0.4 and d["regen"][1]["mm"] == 0
+    assert d["golven"] == [{"t": f"{nu}T15:00", "hs": 1.2, "tp": 6.0}]
+    assert d["getij"][0]["m"] == 0.3 and d["stroom"][0]["kn"] == 0.5
+    assert d["minKn"] == 11.7 and d["maxKn"] == 27.2  # 6-14 m/s
+    assert client.get("/api/widget-grafiek?spot=bestaat-niet").status_code == 404

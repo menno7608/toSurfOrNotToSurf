@@ -54,11 +54,28 @@ public class ConfigActivity extends Activity {
     private void toonLijst() {
         ListView lijst = new ListView(this);
         lijst.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, namen));
-        lijst.setOnItemClickListener((p, v, pos, id) -> kies(ids.get(pos)));
+        lijst.setOnItemClickListener((p, v, pos, id) -> kiesGrafiek(ids.get(pos)));
         setContentView(lijst);
     }
 
-    private void kies(String spotId) {
+    /** Tweede stap: welke grafiek staat bovenaan. Wind is de standaard. */
+    private void kiesGrafiek(String spotId) {
+        TextView kop = new TextView(this);
+        kop.setText("Standaard grafiek");
+        kop.setTextSize(18);
+        kop.setPadding(48, 48, 48, 24);
+        ListView lijst = new ListView(this);
+        lijst.addHeaderView(kop, null, false);
+        lijst.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, Grafiek.NAMEN));
+        lijst.setOnItemClickListener((p, v, pos, id) -> {
+            int i = pos - lijst.getHeaderViewsCount();
+            if (i >= 0) kies(spotId, Grafiek.SOORTEN[i]);
+        });
+        setContentView(lijst);
+    }
+
+    private void kies(String spotId, String grafiek) {
+        WindWidget.bewaarGrafiek(this, widgetId, grafiek);
         WindWidget.bewaarSpot(this, widgetId, spotId);
         final AppWidgetManager m = AppWidgetManager.getInstance(this);
         final android.content.Context app = getApplicationContext();
