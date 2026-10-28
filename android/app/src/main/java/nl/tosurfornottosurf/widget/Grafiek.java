@@ -132,13 +132,11 @@ final class Grafiek {
             c.drawText(uur == 0 ? dag(t) : String.format(Locale.US, "%02d", uur), px, vlak.bottom + 22, p);
         }
 
-        // Gewenst windbereik.
+        // Gewenst windbereik: alleen twee fijne stippellijnen, geen vlak dat met de lijn concurreert.
         if (soort.equals("wind") && !d.isNull("minKn") && !d.isNull("maxKn")) {
-            p.setStyle(Paint.Style.FILL); p.setColor(BAND);
-            c.drawRect(vlak.left, yPos(Math.min(d.getDouble("maxKn"), hi), lo, hi, vlak),
-                    vlak.right, yPos(Math.max(d.getDouble("minKn"), lo), lo, hi, vlak), p);
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.5f); p.setColor((BAND & 0x00FFFFFF) | 0x99000000);
-            p.setPathEffect(new DashPathEffect(new float[]{6, 6}, 0));
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.5f);
+            p.setColor((TEKST & 0x00FFFFFF) | 0x66000000);
+            p.setPathEffect(new DashPathEffect(new float[]{4, 8}, 0));
             float yH = yPos(Math.min(d.getDouble("maxKn"), hi), lo, hi, vlak), yL = yPos(Math.max(d.getDouble("minKn"), lo), lo, hi, vlak);
             c.drawLine(vlak.left, yH, vlak.right, yH, p);
             c.drawLine(vlak.left, yL, vlak.right, yL, p);
