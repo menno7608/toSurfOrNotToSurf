@@ -10,8 +10,9 @@ android {
         applicationId = "nl.tosurfornottosurf.widget"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Het CI-runnummer is het versienummer; frontend/mobile-public/widget/versie.json noemt de nieuwste.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
     }
 
     // Vaste sleutel, zodat een nieuwe versie over de oude heen geïnstalleerd kan worden.

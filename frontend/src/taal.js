@@ -53,6 +53,7 @@ const NL = {
   "Long-press an empty spot on your home screen, tap Widgets and pick toSurfOrNotToSurf.":
     "Houd een lege plek op je beginscherm ingedrukt, tik op Widgets en kies toSurfOrNotToSurf.",
   "Choose your spot.": "Kies je spot.",
+  "Later updates: open the widget app and tap Update.": "Latere updates: open de widget-app en tik op Update.",
   "On iPhone a widget needs the free app Scriptable.": "Op iPhone heeft een widget de gratis app Scriptable nodig.",
   "1. Get Scriptable": "1. Scriptable ophalen", "2. Copy widget script": "2. Widget-script kopiëren",
   "In Scriptable: tap +, paste, then add a Scriptable widget to your home screen.":

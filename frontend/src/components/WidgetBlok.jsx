@@ -37,13 +37,14 @@ export default function WidgetBlok({ homeSpotId = "" }) {
 
       {!ios ? (
         <>
-          <a href="/mobile/widget/tosurfornottosurf.apk" download style={hoofdknop}>
+          <a href={`/mobile/widget/tosurfornottosurf.apk?t=${Date.now()}`} download="tosurfornottosurf.apk" style={hoofdknop}>
             {vertaal("Install widget")}
           </a>
           <ol style={{ ...tekst, margin: "10px 0 0", paddingLeft: 18, listStyle: "decimal" }}>
             <li>{vertaal("Tap the downloaded file and choose Install. Allow it once if your phone asks.")}</li>
             <li>{vertaal("Long-press an empty spot on your home screen, tap Widgets and pick toSurfOrNotToSurf.")}</li>
             <li>{vertaal("Choose your spot.")}</li>
+            <li>{vertaal("Later updates: open the widget app and tap Update.")}</li>
           </ol>
         </>
       ) : (
