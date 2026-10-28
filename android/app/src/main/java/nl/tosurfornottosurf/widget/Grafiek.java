@@ -132,17 +132,6 @@ final class Grafiek {
             c.drawText(uur == 0 ? dag(t) : String.format(Locale.US, "%02d", uur), px, vlak.bottom + 22, p);
         }
 
-        // Gewenst windbereik: alleen twee fijne stippellijnen, geen vlak dat met de lijn concurreert.
-        if (soort.equals("wind") && !d.isNull("minKn") && !d.isNull("maxKn")) {
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.5f);
-            p.setColor((TEKST & 0x00FFFFFF) | 0x66000000);
-            p.setPathEffect(new DashPathEffect(new float[]{4, 8}, 0));
-            float yH = yPos(Math.min(d.getDouble("maxKn"), hi), lo, hi, vlak), yL = yPos(Math.max(d.getDouble("minKn"), lo), lo, hi, vlak);
-            c.drawLine(vlak.left, yH, vlak.right, yH, p);
-            c.drawLine(vlak.left, yL, vlak.right, yL, p);
-            p.setPathEffect(null);
-        }
-
         // De reeks, geknipt op het venster.
         c.save();
         c.clipRect(vlak.left, vlak.top - 2, vlak.right, vlak.bottom + 2);
@@ -168,14 +157,14 @@ final class Grafiek {
         }
         c.restore();
 
-        // Windrichting elke 3 uur langs de bovenkant.
+        // Windrichting elke 3 uur, onderin de plot, zodat de rechterbovenhoek vrij blijft voor de kaart.
         if (soort.equals("wind")) {
-            p.setStyle(Paint.Style.FILL); p.setColor(TEKST); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(20);
+            p.setStyle(Paint.Style.FILL); p.setColor((TEKST & 0x00FFFFFF) | 0xB3000000); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(20);
             String[] pijl = {"↓", "↙", "←", "↖", "↑", "↗", "→", "↘"};
             for (int i = 0; i < n; i++) {
                 JSONObject q = a.getJSONObject(i);
                 if (q.isNull("dir") || x[i] < ws || x[i] > we || (x[i] / 3600) % 3 != 0) continue;
-                c.drawText(pijl[Math.round(q.getInt("dir") / 45f) % 8], xPos(x[i], ws, we, vlak), BOVEN - 6, p);
+                c.drawText(pijl[Math.round(q.getInt("dir") / 45f) % 8], xPos(x[i], ws, we, vlak), vlak.bottom - 6, p);
             }
         }
 

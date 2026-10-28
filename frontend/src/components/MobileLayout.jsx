@@ -1,3 +1,4 @@
+import { leesStandaard, beschikbaar, useStandaardGrafiek } from "../standaardgrafiek.js";
 import { useState, useEffect, useMemo } from "react";
 import WindChart from "./WindChart.jsx";
 import MiniChart from "./MiniChart.jsx";
@@ -311,9 +312,12 @@ export default function MobileLayout({
   const hasWebcam = !!(WEBCAMS[spot?.id] ?? spot?.webcam);
   const [webcamOpen, setWebcamOpen] = useState(false);
   const [rwsMapOpen, setRwsMapOpen] = useState(false);
-  const [activeChart, setActiveChart] = useState("wind");
+  const [activeChart, setActiveChart] = useState(leesStandaard);
+  const standaardGrafiek = useStandaardGrafiek();
+  const grafiekNu = beschikbaar(spot, activeChart) ? activeChart : "wind";
   // Sluit overlays en reset grafiek als je van spot wisselt
-  useEffect(() => { setWebcamOpen(false); setRwsMapOpen(false); setActiveChart("wind"); }, [spot?.id]);
+  useEffect(() => { setWebcamOpen(false); setRwsMapOpen(false); setActiveChart(leesStandaard()); }, [spot?.id]);
+  useEffect(() => { setActiveChart(standaardGrafiek); }, [standaardGrafiek]);
 
   const [scrollTargetDate, setScrollTargetDate] = useState(null);
   useEffect(() => { setScrollTargetDate(null); }, [spot?.id]);
@@ -555,8 +559,8 @@ export default function MobileLayout({
           Anders belandt het over de weekstrip eronder, en dan lijkt die strip
           verdwenen terwijl hij er gewoon staat. */}
       <div style={{ flex: 1, minHeight: "clamp(220px, 42vh, 420px)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
-        <ChartTabs spot={spot} active={activeChart} onChange={setActiveChart} taalKnop={false} />
-        {activeChart === "wind" && (
+        <ChartTabs spot={spot} active={grafiekNu} onChange={setActiveChart} taalKnop={false} />
+        {grafiekNu === "wind" && (
           <WindChart
             past={spot?.windPast}
             live={spot?.windLive}
@@ -571,10 +575,10 @@ export default function MobileLayout({
             onSelect={setKaartMoment}
           />
         )}
-        {activeChart === "current" && <CurrentChart spot={spot} />}
-        {activeChart === "waves"   && <WaveChart spot={spot} waveUnit={waveUnit} />}
-        {activeChart === "tide"    && <TideChart spot={spot} />}
-        {activeChart === "rain"    && <RainChart spot={spot} />}
+        {grafiekNu === "current" && <CurrentChart spot={spot} />}
+        {grafiekNu === "waves"   && <WaveChart spot={spot} waveUnit={waveUnit} />}
+        {grafiekNu === "tide"    && <TideChart spot={spot} />}
+        {grafiekNu === "rain"    && <RainChart spot={spot} />}
         {webcamOpen && (
           <div style={{
             position: "absolute", inset: 0,

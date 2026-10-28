@@ -1,11 +1,17 @@
 import { useState } from "react";
 import FeedbackFormulier from "./FeedbackFormulier.jsx";
 import WidgetBlok from "./WidgetBlok.jsx";
-import { t as vertaal } from "../taal.js";
+import { t as vertaal, huidigeTaal, zetTaal, useTaal } from "../taal.js";
+import { GRAFIEKEN, useStandaardGrafiek, zetStandaard } from "../standaardgrafiek.js";
 import { useVuurwerk, zetVuurwerk, VUURWERK_INTERVALLEN, VUURWERK_DUUR_OPTIES, VUURWERK_PROEF } from "../vuurwerk.js";
 
 const DARK = "#1a2635";
 const CREAM = "#f0ebe0";
+const KEUZE = {
+  width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 8,
+  border: `2px solid ${CREAM}`, background: "transparent", color: CREAM,
+  colorScheme: "dark", fontFamily: "inherit",
+};
 
 function Tandwiel({ size = 16 }) {
   return (
@@ -20,6 +26,8 @@ function Tandwiel({ size = 16 }) {
 export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, onSelectSpot, kaartAan = true, onKaartToggle, color = CREAM, knopStijl = {} }) {
   const [open, setOpen] = useState(false);
   const vw = useVuurwerk();
+  useTaal();
+  const standaardGrafiek = useStandaardGrafiek();
 
   const opNaam = [...spots].sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
@@ -84,6 +92,27 @@ export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, 
             </select>
             <div style={{ fontSize: 12, opacity: 0.7, margin: "6px 0 20px", lineHeight: 1.5 }}>
               {vertaal("The app always opens on this spot and shows it with a house icon on the map.")}
+            </div>
+
+            <label style={{ display: "block", fontSize: 14, fontWeight: 800, marginBottom: 6 }} htmlFor="taalkeuze">
+              {vertaal("Language")}
+            </label>
+            <select id="taalkeuze" value={huidigeTaal()} onChange={(e) => zetTaal(e.target.value)}
+              style={KEUZE}>
+              <option value="nl" style={{ color: "#000" }}>Nederlands</option>
+              <option value="en" style={{ color: "#000" }}>English</option>
+            </select>
+            <div style={{ height: 20 }} />
+
+            <label style={{ display: "block", fontSize: 14, fontWeight: 800, marginBottom: 6 }} htmlFor="standaardgrafiek">
+              {vertaal("Default chart")}
+            </label>
+            <select id="standaardgrafiek" value={standaardGrafiek} onChange={(e) => zetStandaard(e.target.value)}
+              style={KEUZE}>
+              {GRAFIEKEN.map((g) => <option key={g.id} value={g.id} style={{ color: "#000" }}>{vertaal(g.label)}</option>)}
+            </select>
+            <div style={{ fontSize: 12, opacity: 0.7, margin: "6px 0 20px", lineHeight: 1.5 }}>
+              {vertaal("Shown first when you open a spot.")}
             </div>
 
             <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, lineHeight: 1.4, cursor: "pointer", marginBottom: 20 }}>

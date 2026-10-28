@@ -45,6 +45,8 @@ const NL = {
   Settings: "Instellingen", "Home spot": "Thuisspot", None: "Geen",
   "The app always opens on this spot and shows it with a house icon on the map.":
     "De app opent altijd op deze spot en toont hem met een huisje op de kaart.",
+  Language: "Taal", "Default chart": "Standaardgrafiek",
+  "Shown first when you open a spot.": "Wordt als eerste getoond als je een spot opent.",
   "Widget on your home screen": "Widget op je beginscherm",
   "See the wind of your spot without opening the app.": "Zie de wind van je spot zonder de app te openen.",
   "Install widget": "Widget installeren",

@@ -110,7 +110,7 @@ final class Kaart {
 
         // Pijlen wijzen naar de spot toe, zoals in de app: de wind gaat de kant op van richting+180.
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        float s = B / 640f * 0.75f;
+        float s = B / 640f * 0.55f;
         if (windKn != null && windDir != null) {
             pijl(cv, p, (float) ox, (float) oy, (windDir + 180) % 360,
                     (float) ((34 + Math.min(windKn, 35) * 1.4) * s), c.getColor(R.color.accent),

@@ -1,3 +1,4 @@
+import { leesStandaard, beschikbaar, useStandaardGrafiek } from "./standaardgrafiek.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "./components/Header.jsx";
 import SpotSidebar from "./components/SpotSidebar.jsx";
@@ -147,7 +148,8 @@ export default function App({ forceMobile = false }) {
 
   const [webcamOpen, setWebcamOpen] = useState(false);
   const [rwsMapOpen, setRwsMapOpen] = useState(false);
-  const [activeChart, setActiveChart] = useState("wind");
+  const [activeChart, setActiveChart] = useState(leesStandaard);
+  const standaardGrafiek = useStandaardGrafiek();
   const [alarmOpen, setAlarmOpen] = useState(false);
   const [scrollTargetDate, setScrollTargetDate] = useState(null);
   const { rules, updateRule, spotSport, setSpotSport } = useAlarmRules();
@@ -179,7 +181,9 @@ export default function App({ forceMobile = false }) {
     });
   };
 
-  useEffect(() => { setWebcamOpen(false); setRwsMapOpen(false); setActiveChart("wind"); }, [selectedId]);
+  useEffect(() => { setWebcamOpen(false); setRwsMapOpen(false); setActiveChart(leesStandaard()); }, [selectedId]);
+  // Een nieuwe standaard in Instellingen werkt meteen.
+  useEffect(() => { setActiveChart(standaardGrafiek); }, [standaardGrafiek]);
   useEffect(() => { setScrollTargetDate(null); }, [selectedId]);
 
   useEffect(() => {
@@ -310,6 +314,8 @@ export default function App({ forceMobile = false }) {
 
   // Auto-switch theme at sunrise/sunset for the selected spot's location
   useSunTheme(spot?.location?.lat, spot?.location?.lon, setIsDark);
+  // De gekozen grafiek, of wind als deze spot die grafiek niet heeft.
+  const grafiekNu = beschikbaar(spot, activeChart) ? activeChart : "wind";
 
   const theme = isDark ? DARK : LIGHT;
 
@@ -424,8 +430,8 @@ export default function App({ forceMobile = false }) {
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           <SpotSidebar onOnderHoogte={setOnderHoogte} spot={spot} unit={unit} waveUnit={waveUnit} onWaveUnitToggle={toggleWaveUnit} weatherModel={weatherModel} onModelChange={setWeatherModel} spotModels={spotModels} onSaveSpotModel={saveSpotModel} />
           <div style={{ flex: 1, position: "relative", minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <ChartTabs spot={spot} active={activeChart} onChange={setActiveChart} />
-            {activeChart === "wind" && (
+            <ChartTabs spot={spot} active={grafiekNu} onChange={setActiveChart} />
+            {grafiekNu === "wind" && (
               <WindChart
                 past={spot?.windPast}
                 live={spot?.windLive}
@@ -439,10 +445,10 @@ export default function App({ forceMobile = false }) {
                 onSelect={setKaartMoment}
               />
             )}
-            {activeChart === "current" && <CurrentChart spot={spot} />}
-            {activeChart === "waves"   && <WaveChart spot={spot} waveUnit={waveUnit} />}
-            {activeChart === "tide"    && <TideChart spot={spot} />}
-            {activeChart === "rain"    && <RainChart spot={spot} />}
+            {grafiekNu === "current" && <CurrentChart spot={spot} />}
+            {grafiekNu === "waves"   && <WaveChart spot={spot} waveUnit={waveUnit} />}
+            {grafiekNu === "tide"    && <TideChart spot={spot} />}
+            {grafiekNu === "rain"    && <RainChart spot={spot} />}
             <WeekForecast windDaily={spot?.windDaily} unit={unit} onDayClick={setScrollTargetDate} utcOffset={spot?.utcOffset} hoogte={onderHoogte} matchDays={matchDays} />
             {webcamOpen && (
               <div style={{
