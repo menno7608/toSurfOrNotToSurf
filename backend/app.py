@@ -1269,6 +1269,14 @@ def _aflandigheid(wind_dir, shore_angle):
     return "OFF SHORE"
 
 
+def _widget_reden(wind_ms, meta):
+    """Korte reden bij een oordeel dat geen 'go' is, of None."""
+    lo, hi = meta.get("min_wind"), meta.get("max_wind")
+    if wind_ms is None or lo is None or hi is None or lo <= wind_ms <= hi:
+        return None
+    return "te weinig wind" if wind_ms < lo else "te veel wind"
+
+
 def _widget_oordeel(wind_ms, meta):
     """go / bijna / nee, of None als de spot geen drempels heeft.
 
@@ -1408,6 +1416,7 @@ def get_widget():
         "dir": richting,
         "shore": _aflandigheid(richting, meta.get("shore_angle")),
         "oordeel": _widget_oordeel(ms, meta),
+        "reden": _widget_reden(ms, meta),
         "updatedAt": cached.get("liveAt") or cached.get("updatedAt"),
         "url": f"https://tosurfornottosurf.nl/mobile/?spot={spot_id}",
     })

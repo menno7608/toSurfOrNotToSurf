@@ -15,13 +15,22 @@ android {
     }
 
     // Vaste sleutel, zodat een nieuwe versie over de oude heen geïnstalleerd kan worden.
-    // De widget toont alleen openbare weerdata; de sleutel hoeft dus niet geheim te zijn.
+    // In CI komt de sleutel uit GitHub-geheimen (WIDGET_KEYSTORE_PASSWORD + widget.p12); zonder
+    // die geheimen valt de bouw terug op de oude sleutel in de repo (zie android/maak-sleutel.sh).
+    val geheim = System.getenv("WIDGET_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
     signingConfigs {
         create("widget") {
-            storeFile = file("../widget.keystore")
-            storePassword = "tosurf-widget"
+            if (geheim != null) {
+                storeFile = file("../widget.p12")
+                storeType = "pkcs12"
+                storePassword = geheim
+                keyPassword = geheim
+            } else {
+                storeFile = file("../widget.keystore")
+                storePassword = "tosurf-widget"
+                keyPassword = "tosurf-widget"
+            }
             keyAlias = "widget"
-            keyPassword = "tosurf-widget"
         }
     }
 

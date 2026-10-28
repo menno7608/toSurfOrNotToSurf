@@ -97,3 +97,14 @@ def test_widget_grafiek_reeksen(client, mod):
     assert d["getij"][0]["m"] == 0.3 and d["stroom"][0]["kn"] == 0.5
     assert d["minKn"] == 11.7 and d["maxKn"] == 27.2  # 6-14 m/s
     assert client.get("/api/widget-grafiek?spot=bestaat-niet").status_code == 404
+
+
+def test_widget_reden_bij_geen_go(client, mod):
+    _live_leeg(mod)
+    _zaai(mod, "ameland", 3.0)
+    d = client.get("/api/widget?spot=ameland").get_json()
+    assert d["oordeel"] == "nee" and d["reden"] == "te weinig wind"
+    _zaai(mod, "ameland", 25.0)
+    assert client.get("/api/widget?spot=ameland").get_json()["reden"] == "te veel wind"
+    _zaai(mod, "ameland", 10.0)
+    assert client.get("/api/widget?spot=ameland").get_json()["reden"] is None

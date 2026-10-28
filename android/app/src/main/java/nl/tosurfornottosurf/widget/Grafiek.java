@@ -137,6 +137,12 @@ final class Grafiek {
             p.setStyle(Paint.Style.FILL); p.setColor(BAND);
             c.drawRect(vlak.left, yPos(Math.min(d.getDouble("maxKn"), hi), lo, hi, vlak),
                     vlak.right, yPos(Math.max(d.getDouble("minKn"), lo), lo, hi, vlak), p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.5f); p.setColor((BAND & 0x00FFFFFF) | 0x99000000);
+            p.setPathEffect(new DashPathEffect(new float[]{6, 6}, 0));
+            float yH = yPos(Math.min(d.getDouble("maxKn"), hi), lo, hi, vlak), yL = yPos(Math.max(d.getDouble("minKn"), lo), lo, hi, vlak);
+            c.drawLine(vlak.left, yH, vlak.right, yH, p);
+            c.drawLine(vlak.left, yL, vlak.right, yL, p);
+            p.setPathEffect(null);
         }
 
         // De reeks, geknipt op het venster.
@@ -175,11 +181,35 @@ final class Grafiek {
             }
         }
 
-        // Titel klein in de hoek van de plot, zodat de kop vrij blijft.
-        p.setStyle(Paint.Style.FILL); p.setColor((ctx.getColor(R.color.tekst) & 0x00FFFFFF) | 0xCC000000);
+        // Titel met eenheid, klein in de hoek van de plot; een rand in de achtergrondkleur houdt hem leesbaar.
+        String eenheid = soort.equals("regen") ? "mm" : soort.equals("golven") || soort.equals("getij") ? "m" : "kn";
+        String titel = naam(soort) + " · " + eenheid;
         p.setTextSize(20); p.setFakeBoldText(true); p.setTextAlign(Paint.Align.LEFT);
-        c.drawText(naam(soort), vlak.left + 8, vlak.top + 20, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(ctx.getColor(R.color.bg_a4));
+        c.drawText(titel, vlak.left + 8, vlak.top + 20, p);
+        p.setStyle(Paint.Style.FILL); p.setColor((ctx.getColor(R.color.tekst) & 0x00FFFFFF) | 0xE6000000);
+        c.drawText(titel, vlak.left + 8, vlak.top + 20, p);
         p.setFakeBoldText(false);
+
+        // Legenda bij wind: wat is gemiddeld en wat zijn vlagen.
+        if (soort.equals("wind")) {
+            p.setTextSize(16); p.setTextAlign(Paint.Align.RIGHT);
+            p.setColor(TEKST);
+            float ly = vlak.top + 17, rx = vlak.right - 6;
+            c.drawText("vlagen", rx, ly, p);
+            float w1 = p.measureText("vlagen");
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2.5f); p.setColor(VLAAG);
+            p.setPathEffect(new DashPathEffect(new float[]{5, 4}, 0));
+            c.drawLine(rx - w1 - 30, ly - 5, rx - w1 - 8, ly - 5, p);
+            p.setPathEffect(null);
+            p.setStyle(Paint.Style.FILL); p.setColor(TEKST);
+            float rx2 = rx - w1 - 40;
+            c.drawText("gemiddeld", rx2, ly, p);
+            float w2 = p.measureText("gemiddeld");
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3f); p.setColor(VOORSPELLING);
+            c.drawLine(rx2 - w2 - 30, ly - 5, rx2 - w2 - 8, ly - 5, p);
+            p.setStyle(Paint.Style.FILL);
+        }
 
         // Nu: een fijne stippellijn en een oranje punt op de lijn zelf.
         if (nu >= ws && nu <= we) {
@@ -216,14 +246,14 @@ final class Grafiek {
         if (hi - lo < 1e-6) hi = lo + 1;
 
         // Dagen: lichte scheidingslijn en label.
-        p.setTextSize(16); p.setTextAlign(Paint.Align.CENTER);
+        p.setTextSize(18); p.setTextAlign(Paint.Align.CENTER);
         long dag = 86400;
         for (long m = ((x0 / dag) + 1) * dag; m < x1; m += dag) {
             float px = xPos(m, x0, x1, s);
             p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1); p.setColor(RASTER);
             c.drawLine(px, s.top, px, s.bottom, p);
         }
-        p.setStyle(Paint.Style.FILL); p.setColor((TEKST & 0x00FFFFFF) | 0x99000000);
+        p.setStyle(Paint.Style.FILL); p.setColor((TEKST & 0x00FFFFFF) | 0xD9000000);
         for (long m = (x0 / dag) * dag; m < x1; m += dag) {
             long a = Math.max(m, x0), b = Math.min(m + dag, x1);
             if (b - a < 8 * 3600) continue;

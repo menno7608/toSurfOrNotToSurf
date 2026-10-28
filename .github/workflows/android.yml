@@ -18,21 +18,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Sleutel maken (alleen als hij nog niet in de repo staat)
+      - name: Sleutel uit GitHub-geheimen (als die zijn ingesteld)
+        env:
+          SLEUTEL_B64: ${{ secrets.WIDGET_KEYSTORE_B64 }}
         run: |
-          if [ ! -f android/widget.keystore ]; then
-            keytool -genkeypair -keystore android/widget.keystore -storetype PKCS12 \
-              -alias widget -keyalg RSA -keysize 2048 -validity 36500 \
-              -storepass tosurf-widget -keypass tosurf-widget \
-              -dname "CN=toSurfOrNotToSurf widget"
-            echo "NIEUWE_SLEUTEL=1" >> "$GITHUB_ENV"
-          fi
-      - uses: actions/upload-artifact@v4
-        if: env.NIEUWE_SLEUTEL == '1'
-        with:
-          name: widget-keystore
-          path: android/widget.keystore
+          if [ -n "$SLEUTEL_B64" ]; then echo "$SLEUTEL_B64" | base64 -d > android/widget.p12; fi
       - name: APK bouwen
+        env:
+          WIDGET_KEYSTORE_PASSWORD: ${{ secrets.WIDGET_KEYSTORE_PASSWORD }}
         run: gradle -p android assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:

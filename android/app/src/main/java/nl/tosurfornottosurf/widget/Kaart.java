@@ -50,17 +50,33 @@ final class Kaart {
         return new JSONObject(tekst);
     }
 
-    /** Geeft null als er voor deze spot geen kaart is. Pijlen mogen null zijn. */
-    static Bitmap teken(Context c, String spot, double lat, double lon, int B, int H,
+    /** Tekent de hele achtergrond van de widget: zachte rand, kustkaart (als die er is) en de pijlen
+     *  naar de spot. `c` draagt het thema (licht/donker) van deze widget. */
+    static Bitmap teken(Context c, String spot, double lat, double lon, int B, int H, float breedteDp,
                         Double windKn, Integer windDir, Double stroomKn, Integer stroomDir) {
+        Bitmap bm = Bitmap.createBitmap(B, H, Bitmap.Config.ARGB_8888);
+        Canvas cv = new Canvas(bm);
+        float dp = B / Math.max(breedteDp, 100f);               // pixels per dp
+        double ox = SPOT_X * B, oy = SPOT_Y * H;
+
+        // Achtergrond: vier lagen met oplopende dekking, de rand vloeit uit naar transparant.
+        Paint vul = new Paint(Paint.ANTI_ALIAS_FLAG);
+        vul.setStyle(Paint.Style.FILL);
+        int[] kleuren = {c.getColor(R.color.bg_a1), c.getColor(R.color.bg_a2), c.getColor(R.color.bg_a3), c.getColor(R.color.bg_a4)};
+        float[] radius = {28, 25, 22, 19};
+        for (int i = 0; i < 4; i++) {
+            vul.setColor(kleuren[i]);
+            float inset = i * 3 * dp;
+            cv.drawRoundRect(new android.graphics.RectF(inset, inset, B - inset, H - inset), radius[i] * dp, radius[i] * dp, vul);
+        }
+
+        // De kaart op een eigen laag, zodat zijn rand apart kan uitlopen.
+        Bitmap laag = Bitmap.createBitmap(B, H, Bitmap.Config.ARGB_8888);
+        Canvas kv = new Canvas(laag);
         try {
             JSONObject k = kust(c, spot);
-            Bitmap bm = Bitmap.createBitmap(B, H, Bitmap.Config.ARGB_8888);
-            Canvas cv = new Canvas(bm);
             double km = B / KM_BREED;                       // pixels per km
             double kosinus = Math.cos(Math.toRadians(lat));
-            double ox = SPOT_X * B, oy = SPOT_Y * H;
-
             Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
             Path land = new Path();
             land.setFillType(Path.FillType.EVEN_ODD);
@@ -68,7 +84,7 @@ final class Kaart {
             if (la != null) for (int i = 0; i < la.length(); i++) ring(land, la.getJSONArray(i), lat, lon, kosinus, km, ox, oy, true);
             p.setStyle(Paint.Style.FILL);
             p.setColor((c.getColor(R.color.tekst) & 0x00FFFFFF) | 0x12000000);
-            cv.drawPath(land, p);
+            kv.drawPath(land, p);
 
             Path lijn = new Path();
             JSONArray ku = k.optJSONArray("kust");
@@ -78,38 +94,40 @@ final class Kaart {
             p.setStrokeJoin(Paint.Join.ROUND);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setColor((c.getColor(R.color.lijn) & 0x00FFFFFF) | 0x66000000);
-            cv.drawPath(lijn, p);
+            kv.drawPath(lijn, p);
 
             // Onder de kop wordt het decor stiller, zodat de grafieklijnen leesbaar blijven.
             Paint f = new Paint();
             f.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
-            f.setShader(new LinearGradient(0, H * 0.22f, 0, H * 0.45f, Color.argb(0, 0, 0, 0), Color.argb(170, 0, 0, 0), Shader.TileMode.CLAMP));
-            cv.drawRect(0, H * 0.22f, B, H, f);
-
-            // Pijlen wijzen naar de spot toe, zoals in de app: de wind gaat de kant op van richting+180.
-            float s = B / 640f * 0.75f;
-            if (windKn != null && windDir != null) {
-                pijl(cv, p, (float) ox, (float) oy, (windDir + 180) % 360,
-                        (float) ((34 + Math.min(windKn, 35) * 1.4) * s), c.getColor(R.color.accent),
-                        c.getColor(R.color.tekst), Math.round(windKn) + " kn", s);
-            }
-            if (stroomKn != null && stroomDir != null && stroomKn > 0) {
-                pijl(cv, p, (float) ox, (float) oy, stroomDir,
-                        (float) ((26 + Math.min(stroomKn, 3) * 22) * s), c.getColor(R.color.voorspelling),
-                        c.getColor(R.color.tekst), String.format(java.util.Locale.US, "%.1f kn", stroomKn), s);
-            }
-
-            // De spot zelf: ring met stip.
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2.5f * s); p.setColor(c.getColor(R.color.accent));
-            cv.drawCircle((float) ox, (float) oy, 10f * s, p);
-            p.setStyle(Paint.Style.FILL);
-            cv.drawCircle((float) ox, (float) oy, 4f * s, p);
-
-            randUitvloeien(cv, B, H, 26f * s);
-            return bm;
+            f.setShader(new LinearGradient(0, H * 0.22f, 0, H * 0.45f, Color.argb(0, 0, 0, 0), Color.argb(235, 0, 0, 0), Shader.TileMode.CLAMP));
+            kv.drawRect(0, H * 0.22f, B, H, f);
         } catch (Exception e) {
-            return null;
+            // Geen kustdata voor deze spot: de widget werkt gewoon zonder kaart.
         }
+        randUitvloeien(kv, B, H, 26f * dp * 0.8f);
+        cv.drawBitmap(laag, 0, 0, null);
+        laag.recycle();
+
+        // Pijlen wijzen naar de spot toe, zoals in de app: de wind gaat de kant op van richting+180.
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float s = B / 640f * 0.75f;
+        if (windKn != null && windDir != null) {
+            pijl(cv, p, (float) ox, (float) oy, (windDir + 180) % 360,
+                    (float) ((34 + Math.min(windKn, 35) * 1.4) * s), c.getColor(R.color.accent),
+                    c.getColor(R.color.tekst), "", s);
+        }
+        if (stroomKn != null && stroomDir != null && stroomKn > 0) {
+            pijl(cv, p, (float) ox, (float) oy, stroomDir,
+                    (float) ((26 + Math.min(stroomKn, 3) * 22) * s), c.getColor(R.color.voorspelling),
+                    c.getColor(R.color.tekst), String.format(java.util.Locale.US, "%.1f kn", stroomKn), s);
+        }
+
+        // De spot zelf: ring met stip.
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2.5f * s); p.setColor(c.getColor(R.color.accent));
+        cv.drawCircle((float) ox, (float) oy, 10f * s, p);
+        p.setStyle(Paint.Style.FILL);
+        cv.drawCircle((float) ox, (float) oy, 4f * s, p);
+        return bm;
     }
 
     /** Pijl die eindigt bij de spot; graden = waar het heen gaat (0 = noord). */
@@ -136,6 +154,7 @@ final class Kaart {
         p.setStyle(Paint.Style.FILL);
         cv.drawPath(kop, p);
 
+        if (label != null && !label.isEmpty()) {
         // Label aan de staart, van de pijl af.
         p.setStyle(Paint.Style.FILL);
         p.setTextSize(19f * s);
@@ -144,6 +163,7 @@ final class Kaart {
         p.setFakeBoldText(true);
         cv.drawText(label, staartX - hx * 6f * s, staartY - hy * 6f * s + 7f * s, p);
         p.setFakeBoldText(false);
+        }
     }
 
     /** De rand loopt uit naar transparant: de widget zweeft op het beginscherm. */

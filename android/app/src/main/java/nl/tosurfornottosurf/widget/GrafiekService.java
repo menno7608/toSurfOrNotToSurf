@@ -28,6 +28,7 @@ public class GrafiekService extends RemoteViewsService {
         private final Context c;
         private final int widgetId;
         private final List<Bitmap> beelden = new ArrayList<>();
+        private final List<String> soorten = new ArrayList<>();
         private JSONObject data;
         private String dataSpot = "";
         private long dataTijd = 0;
@@ -53,6 +54,7 @@ public class GrafiekService extends RemoteViewsService {
         @Override
         public void onDataSetChanged() {
             beelden.clear();
+            soorten.clear();
             String spot = WindWidget.spotVan(c, widgetId);
             if (spot.isEmpty()) return;
             url = Api.BASIS + "/mobile/?spot=" + Uri.encode(spot);
@@ -71,7 +73,8 @@ public class GrafiekService extends RemoteViewsService {
                 int h = hoogte();
                 for (String soort : volgorde) {
                     if (!Grafiek.heeft(data, soort)) continue;
-                    beelden.add(Grafiek.teken(c, data, soort, offset, B, h));
+                    soorten.add(soort);
+                    beelden.add(Grafiek.teken(WindWidget.thema(c, widgetId), data, soort, offset, B, h));
                 }
             } catch (Throwable e) {
                 beelden.clear();
@@ -86,6 +89,7 @@ public class GrafiekService extends RemoteViewsService {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.grafiek_item);
             if (pos < beelden.size()) {
                 v.setImageViewBitmap(R.id.grafiek_beeld, beelden.get(pos));
+                v.setContentDescription(R.id.grafiek_beeld, "Grafiek " + Grafiek.naam(soorten.get(pos)).toLowerCase() + ", 24 uur rond nu. Tik rechts voor later, links voor eerder.");
                 v.setOnClickFillInIntent(R.id.grafiek_links, scroll(-Grafiek.STAP));
                 v.setOnClickFillInIntent(R.id.grafiek_rechts, scroll(Grafiek.STAP));
             }

@@ -2,8 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wortel"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_achtergrond">
+    android:layout_height="match_parent">
 
     <!-- De kaart over de hele widget, ook achter de grafiek. -->
     <ImageView
@@ -25,12 +24,13 @@
         <LinearLayout
             android:id="@+id/kop"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="46dp"
             android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <TextView
@@ -39,7 +39,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:maxWidth="130dp"
                     android:text="…"
                     android:textColor="@color/tekst"
                     android:textSize="12sp"
@@ -56,11 +56,28 @@
                     android:textSize="13sp" />
 
                 <TextView
+                    android:id="@+id/nu"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:text="⟲ nu"
+                    android:textColor="@color/accent"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:contentDescription="@null" />
+
+                <TextView
                     android:id="@+id/oordeel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:textColor="@color/nee"
+                    android:textColor="#1A2635"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -83,13 +100,13 @@
 
                 <TextView
                     android:id="@+id/vlagen"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:layout_marginBottom="3dp"
+                    android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:maxWidth="120dp"
                     android:textColor="@color/tekst_zwak"
                     android:textSize="10sp" />
             </LinearLayout>
