@@ -45,18 +45,21 @@ const NL = {
   Settings: "Instellingen", "Home spot": "Thuisspot", None: "Geen",
   "The app always opens on this spot and shows it with a house icon on the map.":
     "De app opent altijd op deze spot en toont hem met een huisje op de kaart.",
-  "Phone widget": "Telefoonwidget",
-  "Choose a home spot first — the widget shows that spot.": "Kies eerst een thuisspot — de widget toont die spot.",
-  "Install the free Scriptable app, copy the script, paste it into a new script and add a Scriptable widget to your home screen.":
-    "Installeer de gratis app Scriptable, kopieer het script, plak het in een nieuw script en zet een Scriptable-widget op je beginscherm.",
-  "Install KWGT Kustom Widget Maker and its Pro key from the Play Store.":
-    "Installeer KWGT Kustom Widget Maker en de Pro-sleutel uit de Play Store.",
-  "Long-press your home screen, add a KWGT widget and tap it to edit.":
-    "Houd je beginscherm ingedrukt, voeg een KWGT-widget toe en tik erop om te bewerken.",
-  "Add a text item, choose a formula and paste the one you copy here.":
-    "Voeg een tekstitem toe, kies een formule en plak degene die je hier kopieert.",
-  "Copy KWGT formula": "Kopieer KWGT-formule", "Copy iPhone script": "Kopieer iPhone-script",
-  Copied: "Gekopieerd", "Copy failed": "Kopiëren lukte niet",
+  "Widget on your home screen": "Widget op je beginscherm",
+  "See the wind of your spot without opening the app.": "Zie de wind van je spot zonder de app te openen.",
+  "Install widget": "Widget installeren",
+  "Tap the downloaded file and choose Install. Allow it once if your phone asks.":
+    "Tik op het gedownloade bestand en kies Installeren. Sta het één keer toe als je telefoon dat vraagt.",
+  "Long-press an empty spot on your home screen, tap Widgets and pick toSurfOrNotToSurf.":
+    "Houd een lege plek op je beginscherm ingedrukt, tik op Widgets en kies toSurfOrNotToSurf.",
+  "Choose your spot.": "Kies je spot.",
+  "On iPhone a widget needs the free app Scriptable.": "Op iPhone heeft een widget de gratis app Scriptable nodig.",
+  "1. Get Scriptable": "1. Scriptable ophalen", "2. Copy widget script": "2. Widget-script kopiëren",
+  "In Scriptable: tap +, paste, then add a Scriptable widget to your home screen.":
+    "In Scriptable: tik op +, plak, en zet daarna een Scriptable-widget op je beginscherm.",
+  "Script copied — now open Scriptable and paste it into a new script.":
+    "Script gekopieerd — open nu Scriptable en plak het in een nieuw script.",
+  "Copy failed": "Kopiëren lukte niet",
   "Idea or bug?": "Idee of foutje?",
   "What would you like to see, or what isn't working well?": "Wat zou je willen zien, of wat werkt niet goed?",
   Send: "Versturen", "Sending…": "Versturen…", Close: "Sluiten",

@@ -167,6 +167,14 @@ public class WindWidget extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.kop,
                 PendingIntent.getActivity(c, widgetId, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
 
+        // Naam en tandwiel openen de instellingen: andere spot, andere standaardgrafiek.
+        Intent instel = new Intent(c, ConfigActivity.class).setAction(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
+        PendingIntent instellen = PendingIntent.getActivity(c, widgetId + 100000, instel,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        v.setOnClickPendingIntent(R.id.naam, instellen);
+        v.setOnClickPendingIntent(R.id.tandwiel, instellen);
+
         // De lijst met grafieken, één per pagina. Een tik links of rechts op een grafiek schuift het
         // venster een halve dag; dat gaat via een broadcast naar deze widget (expliciete intent).
         Intent dienst = new Intent(c, GrafiekService.class);

@@ -77,6 +77,7 @@ public class ConfigActivity extends Activity {
     private void kies(String spotId, String grafiek) {
         WindWidget.bewaarGrafiek(this, widgetId, grafiek);
         WindWidget.bewaarSpot(this, widgetId, spotId);
+        WindWidget.bewaarOffset(this, widgetId, 0); // opnieuw beginnen bij nu
         final AppWidgetManager m = AppWidgetManager.getInstance(this);
         final android.content.Context app = getApplicationContext();
         new Thread(() -> {

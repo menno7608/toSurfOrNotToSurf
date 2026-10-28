@@ -9,5 +9,6 @@
     android:configure="nl.tosurfornottosurf.widget.ConfigActivity"
     android:minResizeWidth="180dp"
     android:minResizeHeight="110dp"
+    android:widgetFeatures="reconfigurable"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

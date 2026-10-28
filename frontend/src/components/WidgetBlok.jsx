@@ -2,12 +2,14 @@ import { useState } from "react";
 import { t as vertaal } from "../taal.js";
 
 const CREAM = "#f0ebe0";
+const ORANJE = "#e8913e";
 
-const knop = {
-  border: `1px solid ${CREAM}`, borderRadius: 8, padding: "8px 14px", background: "transparent",
-  color: CREAM, fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 8, marginTop: 8,
+const hoofdknop = {
+  display: "block", width: "100%", boxSizing: "border-box", textAlign: "center", textDecoration: "none",
+  border: `2px solid ${ORANJE}`, borderRadius: 10, padding: "12px 14px", background: ORANJE,
+  color: "#1a2635", fontSize: 15, fontWeight: 800, cursor: "pointer", marginTop: 10,
 };
-const tekst = { fontSize: 12, opacity: 0.85, lineHeight: 1.5 };
+const tekst = { fontSize: 13, lineHeight: 1.5, opacity: 0.9 };
 
 async function kopieer(inhoud) {
   try { await navigator.clipboard.writeText(inhoud); return true; }
@@ -16,56 +18,52 @@ async function kopieer(inhoud) {
 
 export default function WidgetBlok({ homeSpotId = "" }) {
   const [status, setStatus] = useState("");
-  const android = /android/i.test(navigator.userAgent);
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
-  const basis = homeSpotId ? `${window.location.origin}/api/widget?spot=${encodeURIComponent(homeSpotId)}` : "";
-  // KWGT leest een tekstregel met $wg(url, txt)$.
-  const formule = basis ? `$wg("${basis}&format=text", txt)$` : "";
-
-  const meld = async (belofte) => setStatus((await belofte) ? "Copied" : "Copy failed");
-
-  const kopieerScript = () => meld((async () => {
+  const kopieerScript = async () => {
     try {
       const inhoud = await (await fetch("/mobile/widget/scriptable.js", { cache: "no-store" })).text();
-      return await kopieer(inhoud.replace("__SPOT__", homeSpotId));
-    } catch { return false; }
-  })());
-
-  const androidDeel = (
-    <div>
-      <div style={{ ...tekst, fontWeight: 800, opacity: 1 }}>Android</div>
-      <ol style={{ ...tekst, margin: "4px 0 0", paddingLeft: 18, listStyle: "decimal" }}>
-        <li>{vertaal("Install KWGT Kustom Widget Maker and its Pro key from the Play Store.")}</li>
-        <li>{vertaal("Long-press your home screen, add a KWGT widget and tap it to edit.")}</li>
-        <li>{vertaal("Add a text item, choose a formula and paste the one you copy here.")}</li>
-      </ol>
-      <button type="button" style={knop} onClick={() => meld(kopieer(formule))}>{vertaal("Copy KWGT formula")}</button>
-    </div>
-  );
-
-  const iphoneDeel = (
-    <div>
-      <div style={{ ...tekst, fontWeight: 800, opacity: 1 }}>iPhone</div>
-      <div style={tekst}>
-        {vertaal("Install the free Scriptable app, copy the script, paste it into a new script and add a Scriptable widget to your home screen.")}
-      </div>
-      <button type="button" style={knop} onClick={kopieerScript}>{vertaal("Copy iPhone script")}</button>
-    </div>
-  );
+      const ok = await kopieer(inhoud.replace("__SPOT__", homeSpotId));
+      setStatus(ok ? "Script copied — now open Scriptable and paste it into a new script." : "Copy failed");
+    } catch {
+      setStatus("Copy failed");
+    }
+  };
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>{vertaal("Phone widget")}</div>
-      {!homeSpotId ? (
-        <div style={{ ...tekst, opacity: 0.7 }}>{vertaal("Choose a home spot first — the widget shows that spot.")}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>{vertaal("Widget on your home screen")}</div>
+      <div style={tekst}>{vertaal("See the wind of your spot without opening the app.")}</div>
+
+      {!ios ? (
+        <>
+          <a href="/mobile/widget/tosurfornottosurf.apk" download style={hoofdknop}>
+            {vertaal("Install widget")}
+          </a>
+          <ol style={{ ...tekst, margin: "10px 0 0", paddingLeft: 18, listStyle: "decimal" }}>
+            <li>{vertaal("Tap the downloaded file and choose Install. Allow it once if your phone asks.")}</li>
+            <li>{vertaal("Long-press an empty spot on your home screen, tap Widgets and pick toSurfOrNotToSurf.")}</li>
+            <li>{vertaal("Choose your spot.")}</li>
+          </ol>
+        </>
       ) : (
         <>
-          {android ? androidDeel : iphoneDeel}
-          <div style={{ height: 12 }} />
-          {android ? iphoneDeel : androidDeel}
-          {status && <div role="status" style={{ ...tekst, marginTop: 8 }}>{vertaal(status)}</div>}
+          <div style={{ ...tekst, marginTop: 8 }}>
+            {vertaal("On iPhone a widget needs the free app Scriptable.")}
+          </div>
+          <a href="https://apps.apple.com/app/scriptable/id1405459188" target="_blank" rel="noreferrer" style={hoofdknop}>
+            {vertaal("1. Get Scriptable")}
+          </a>
+          <button type="button" style={{ ...hoofdknop, background: "transparent", color: CREAM, border: `2px solid ${CREAM}` }}
+            onClick={kopieerScript}>
+            {vertaal("2. Copy widget script")}
+          </button>
+          <div style={{ ...tekst, marginTop: 8 }}>
+            {vertaal("In Scriptable: tap +, paste, then add a Scriptable widget to your home screen.")}
+          </div>
         </>
       )}
+      {status && <div role="status" style={{ ...tekst, marginTop: 8 }}>{vertaal(status)}</div>}
     </div>
   );
 }
