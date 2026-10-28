@@ -1249,6 +1249,79 @@ def get_spots():
     return resp
 
 
+# ---- widget (homescreen-widget op de telefoon) ──────────────────────────────
+_MS_NAAR_KN = 1.94384
+
+
+def _aflandigheid(wind_dir, shore_angle):
+    """Zelfde indeling als getShoreType in frontend/src/hooks/useAlarmMatch.js."""
+    if wind_dir is None or shore_angle is None:
+        return None
+    diff = abs(((wind_dir - shore_angle + 180) % 360 + 360) % 360 - 180)
+    if diff <= 30:
+        return "ON SHORE"
+    if diff <= 60:
+        return "SIDE-ON"
+    if diff <= 120:
+        return "SIDE SHORE"
+    if diff <= 150:
+        return "SIDE-OFF"
+    return "OFF SHORE"
+
+
+def _widget_oordeel(wind_ms, meta):
+    """go / bijna / nee, of None als de spot geen drempels heeft.
+
+    Alleen de eenvoudige variant: windbereik uit spots.json (m/s). De regels
+    die een gebruiker in de app zelf instelt staan in localStorage en zijn hier
+    niet beschikbaar. 'bijna' = binnen 2 m/s van het bereik."""
+    lo, hi = meta.get("min_wind"), meta.get("max_wind")
+    if wind_ms is None or lo is None or hi is None:
+        return None
+    if lo <= wind_ms <= hi:
+        return "go"
+    if lo - 2 <= wind_ms <= hi + 2:
+        return "bijna"
+    return "nee"
+
+
+@app.route("/api/widget")
+def get_widget():
+    """Klein antwoord voor een homescreen-widget (Scriptable, KWGT): één spot,
+    alleen wat een widget toont. Leest uit dezelfde cache als /api/spots en
+    start zelf geen verversing."""
+    spot_id = request.args.get("spot", "")
+    meta = next((m for m in SPOTS_META if m["id"] == spot_id), None)
+    if meta is None:
+        return jsonify({"error": "onbekende spot"}), 404
+    cached, _ = _cache_get((spot_id, "best_match"), allow_stale=True)
+    if cached is None:
+        return jsonify({"error": "nog geen data"}), 503
+    try:
+        cached = _apply_buienradar(cached, meta)
+    except Exception:
+        pass
+    live = cached.get("live") or {}
+    ms, gust, richting = live.get("windSpeed"), live.get("windGust"), live.get("windDir")
+
+    def kn(v):
+        return round(v * _MS_NAAR_KN) if v is not None else None
+
+    resp = jsonify({
+        "id": spot_id,
+        "name": meta["name"],
+        "windKn": kn(ms),
+        "gustKn": kn(gust),
+        "dir": richting,
+        "shore": _aflandigheid(richting, meta.get("shore_angle")),
+        "oordeel": _widget_oordeel(ms, meta),
+        "updatedAt": cached.get("liveAt") or cached.get("updatedAt"),
+        "url": f"https://tosurfornottosurf.nl/mobile/?spot={spot_id}",
+    })
+    resp.headers["Cache-Control"] = "public, max-age=60"
+    return resp
+
+
 # ---- drukkaart (kaart-achtergrond bij de grafiek) ───────────────────────────
 # Overgenomen uit de watersport-trainer-app (05-10-2026), maar niet 1-op-1:
 # daar is dit een blokkerende call ín het verzoek. Na de F1-audit hier (29-09)

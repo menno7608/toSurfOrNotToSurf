@@ -70,7 +70,8 @@ export default function App({ forceMobile = false }) {
     } catch {}
   };
   const [selectedId, setSelectedId] = useState(() => {
-    try { return localStorage.getItem("homeSpotId") || localStorage.getItem("selectedId") || ""; }
+    // Een widget opent de app op zijn eigen spot: /mobile/?spot=<id> wint van de thuisspot.
+    try { return new URLSearchParams(window.location.search).get("spot") || localStorage.getItem("homeSpotId") || localStorage.getItem("selectedId") || ""; }
     catch { return ""; }
   });
   // Kaart als achtergrond: sommigen vinden het scherm er druk van worden.

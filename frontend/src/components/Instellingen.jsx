@@ -1,5 +1,6 @@
 import { useState } from "react";
 import FeedbackFormulier from "./FeedbackFormulier.jsx";
+import WidgetBlok from "./WidgetBlok.jsx";
 import { t as vertaal } from "../taal.js";
 import { useVuurwerk, zetVuurwerk, VUURWERK_INTERVALLEN, VUURWERK_DUUR_OPTIES, VUURWERK_PROEF } from "../vuurwerk.js";
 
@@ -139,6 +140,8 @@ export default function Instellingen({ spots = [], homeSpotId = "", onHomeSpot, 
             <div style={{ fontSize: 12, opacity: 0.7, margin: "8px 0 20px", lineHeight: 1.5 }}>
               {vertaal("Set a sport under ALARM first — fireworks appear on the days it matches.")}
             </div>
+
+            <WidgetBlok homeSpotId={homeSpotId} />
 
             <FeedbackFormulier />
 

@@ -45,6 +45,14 @@ const NL = {
   Settings: "Instellingen", "Home spot": "Thuisspot", None: "Geen",
   "The app always opens on this spot and shows it with a house icon on the map.":
     "De app opent altijd op deze spot en toont hem met een huisje op de kaart.",
+  "Phone widget": "Telefoonwidget",
+  "Choose a home spot first — the widget shows that spot.": "Kies eerst een thuisspot — de widget toont die spot.",
+  "iPhone: install the free Scriptable app, copy the script, paste it into a new script and add a Scriptable widget to your home screen.":
+    "iPhone: installeer de gratis app Scriptable, kopieer het script, plak het in een nieuw script en zet een Scriptable-widget op je beginscherm.",
+  "Android: use a widget app such as KWGT and point it at this address.":
+    "Android: gebruik een widget-app zoals KWGT en wijs die naar dit adres.",
+  "Copy iPhone script": "Kopieer iPhone-script", "Copy widget address": "Kopieer widget-adres",
+  Copied: "Gekopieerd", "Copy failed": "Kopiëren lukte niet",
   "Idea or bug?": "Idee of foutje?",
   "What would you like to see, or what isn't working well?": "Wat zou je willen zien, of wat werkt niet goed?",
   Send: "Versturen", "Sending…": "Versturen…", Close: "Sluiten",
